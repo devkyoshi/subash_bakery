@@ -1,0 +1,191 @@
+version: "3.8"
+
+services:
+  # MongoDB
+  mongodb:
+    image: mongo:7.0
+    container_name: erp-mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: admin123
+      MONGO_INITDB_DATABASE: erp_db
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+      - ./scripts/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js
+    networks:
+      - erp-network
+
+  # Redis
+  redis:
+    image: redis:7-alpine
+    container_name: erp-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - erp-network
+
+  # RabbitMQ
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: erp-rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: admin123
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - erp-network
+
+  # API Gateway
+  api-gateway:
+    build:
+      context: .
+      dockerfile: ./services/api-gateway/Dockerfile
+    container_name: erp-api-gateway
+    restart: unless-stopped
+    environment:
+      PORT: 8080
+      AUTH_SERVICE_URL: http://auth-service:8001
+      ORG_SERVICE_URL: http://org-service:8002
+      PRODUCT_SERVICE_URL: http://product-service:8003
+      INVENTORY_SERVICE_URL: http://inventory-service:8004
+      PROCUREMENT_SERVICE_URL: http://procurement-service:8005
+    ports:
+      - "8080:8080"
+    depends_on:
+      - auth-service
+      - org-service
+      - product-service
+      - inventory-service
+      - procurement-service
+    networks:
+      - erp-network
+
+  # Auth Service
+  auth-service:
+    build:
+      context: .
+      dockerfile: ./services/auth-service/Dockerfile
+    container_name: erp-auth-service
+    restart: unless-stopped
+    environment:
+      PORT: 8001
+      MONGO_URI: mongodb://admin:admin123@mongodb:27017
+      REDIS_ADDR: redis:6379
+      JWT_SECRET: your-super-secret-jwt-key-change-in-production
+      JWT_EXPIRY: 15m
+      REFRESH_TOKEN_EXPIRY: 168h
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+    ports:
+      - "8001:8001"
+    depends_on:
+      - mongodb
+      - redis
+    networks:
+      - erp-network
+
+  # Organization Service
+  org-service:
+    build:
+      context: .
+      dockerfile: ./services/org-service/Dockerfile
+    container_name: erp-org-service
+    restart: unless-stopped
+    environment:
+      PORT: 8002
+      MONGO_URI: mongodb://admin:admin123@mongodb:27017
+      REDIS_ADDR: redis:6379
+      RABBITMQ_URL: amqp://admin:admin123@rabbitmq:5672/
+      JWT_SECRET: your-super-secret-jwt-key-change-in-production
+    ports:
+      - "8002:8002"
+    depends_on:
+      - mongodb
+      - redis
+      - rabbitmq
+    networks:
+      - erp-network
+
+  # Product Service
+  product-service:
+    build:
+      context: .
+      dockerfile: ./services/product-service/Dockerfile
+    container_name: erp-product-service
+    restart: unless-stopped
+    environment:
+      PORT: 8003
+      MONGO_URI: mongodb://admin:admin123@mongodb:27017
+      REDIS_ADDR: redis:6379
+      RABBITMQ_URL: amqp://admin:admin123@rabbitmq:5672/
+      JWT_SECRET: your-super-secret-jwt-key-change-in-production
+    ports:
+      - "8003:8003"
+    depends_on:
+      - mongodb
+      - redis
+      - rabbitmq
+    networks:
+      - erp-network
+
+  # Inventory Service
+  inventory-service:
+    build:
+      context: .
+      dockerfile: ./services/inventory-service/Dockerfile
+    container_name: erp-inventory-service
+    restart: unless-stopped
+    environment:
+      PORT: 8004
+      MONGO_URI: mongodb://admin:admin123@mongodb:27017
+      REDIS_ADDR: redis:6379
+      RABBITMQ_URL: amqp://admin:admin123@rabbitmq:5672/
+      JWT_SECRET: your-super-secret-jwt-key-change-in-production
+    ports:
+      - "8004:8004"
+    depends_on:
+      - mongodb
+      - redis
+      - rabbitmq
+    networks:
+      - erp-network
+
+  # Procurement Service
+  procurement-service:
+    build:
+      context: .
+      dockerfile: ./services/procurement-service/Dockerfile
+    container_name: erp-procurement-service
+    restart: unless-stopped
+    environment:
+      PORT: 8005
+      MONGO_URI: mongodb://admin:admin123@mongodb:27017
+      REDIS_ADDR: redis:6379
+      JWT_SECRET: your-super-secret-jwt-key-change-in-production
+    ports:
+      - "8005:8005"
+    depends_on:
+      - mongodb
+      - redis
+    networks:
+      - erp-network
+
+volumes:
+  mongodb_data:
+  redis_data:
+  rabbitmq_data:
+
+networks:
+  erp-network:
+    driver: bridge

@@ -1,0 +1,1860 @@
+openapi: 3.0.3
+info:
+  title: ERP System Backend API
+  description: |
+    Complete API documentation for the ERP System Backend microservices.
+    
+    ## Services
+    - **Auth Service**: Authentication and user management
+    - **Organization Service**: Organizations, companies, and locations
+    - **Inventory Service**: Products and stock management
+    - **License Service**: Application licenses and assignments
+    - **Subscription Service**: Subscription plans and billing
+    
+    ## Authentication
+    Most endpoints require JWT authentication via Bearer token in the Authorization header.
+    
+  version: 1.0.0
+  contact:
+    name: ERP System Team
+    email: support@erpsystem.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:8081/api/v1
+    description: Auth Service (Development)
+  - url: http://localhost:8082/api/v1
+    description: Organization Service (Development)
+  - url: http://localhost:8083/api/v1
+    description: Inventory Service (Development)
+  - url: http://localhost:8084/api/v1
+    description: License Service (Development)
+  - url: http://localhost:8085/api/v1
+    description: Subscription Service (Development)
+
+tags:
+  - name: Auth
+    description: Authentication and user management
+  - name: Organizations
+    description: Organization management
+  - name: Companies
+    description: Company management
+  - name: Locations
+    description: Location management
+  - name: Inventory
+    description: Product and stock management
+  - name: Licenses
+    description: License management
+  - name: Applications
+    description: Application registry
+  - name: Subscriptions
+    description: Subscription and billing management
+  - name: Plans
+    description: Subscription plans
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token obtained from login or register endpoint
+
+  schemas:
+    # Common Schemas
+    SuccessResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: success
+        code:
+          type: integer
+          example: 200
+        message:
+          type: string
+        data:
+          type: object
+    
+    ErrorResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: error
+        code:
+          type: integer
+          example: 400
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            details:
+              type: object
+    
+    PaginationResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: success
+        code:
+          type: integer
+          example: 200
+        data:
+          type: array
+          items:
+            type: object
+        pagination:
+          type: object
+          properties:
+            page:
+              type: integer
+            limit:
+              type: integer
+            total:
+              type: integer
+            total_pages:
+              type: integer
+    
+    BaseModel:
+      type: object
+      properties:
+        id:
+          type: string
+          format: objectid
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        created_by:
+          type: string
+          format: objectid
+        updated_by:
+          type: string
+          format: objectid
+          nullable: true
+        deleted_at:
+          type: string
+          format: date-time
+          nullable: true
+        deleted_by:
+          type: string
+          format: objectid
+          nullable: true
+    
+    Address:
+      type: object
+      required:
+        - street
+        - city
+        - state
+        - postal_code
+        - country
+      properties:
+        street:
+          type: string
+        street2:
+          type: string
+        city:
+          type: string
+        state:
+          type: string
+        postal_code:
+          type: string
+        country:
+          type: string
+        country_code:
+          type: string
+        latitude:
+          type: number
+          format: float
+        longitude:
+          type: number
+          format: float
+    
+    # Auth Schemas
+    User:
+      allOf:
+        - $ref: '#/components/schemas/BaseModel'
+        - type: object
+          properties:
+            email:
+              type: string
+              format: email
+            first_name:
+              type: string
+            last_name:
+              type: string
+            phone:
+              type: string
+            avatar:
+              type: string
+            organization_id:
+              type: string
+              format: objectid
+            role:
+              type: string
+              enum: [super_admin, org_admin, manager, user]
+            status:
+              type: string
+              enum: [active, inactive, suspended, pending_verification]
+            is_email_verified:
+              type: boolean
+            email_verified_at:
+              type: string
+              format: date-time
+            last_login_at:
+              type: string
+              format: date-time
+    
+    RegisterRequest:
+      type: object
+      required:
+        - email
+        - password
+        - first_name
+        - last_name
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+        first_name:
+          type: string
+        last_name:
+          type: string
+        phone:
+          type: string
+        organization_id:
+          type: string
+    
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+    
+    AuthResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+        refresh_token:
+          type: string
+        user:
+          $ref: '#/components/schemas/User'
+    
+    RefreshTokenRequest:
+      type: object
+      required:
+        - refresh_token
+      properties:
+        refresh_token:
+          type: string
+    
+    # Organization Schemas
+    Organization:
+      allOf:
+        - $ref: '#/components/schemas/BaseModel'
+        - type: object
+          properties:
+            name:
+              type: string
+            legal_name:
+              type: string
+            domain:
+              type: string
+            email:
+              type: string
+              format: email
+            phone:
+              type: string
+            website:
+              type: string
+            tax_id:
+              type: string
+            registration_number:
+              type: string
+            industry:
+              type: string
+            company_size:
+              type: string
+              enum: [small, medium, large, enterprise]
+            status:
+              type: string
+              enum: [active, inactive, suspended, trial, cancelled]
+            is_active:
+              type: boolean
+            billing_email:
+              type: string
+              format: email
+            max_users:
+              type: integer
+            max_companies:
+              type: integer
+            max_locations:
+              type: integer
+            current_users:
+              type: integer
+            current_companies:
+              type: integer
+            current_locations:
+              type: integer
+            storage_used_gb:
+              type: number
+              format: float
+            storage_limit_gb:
+              type: number
+              format: float
+    
+    CreateOrganizationRequest:
+      type: object
+      required:
+        - name
+        - legal_name
+        - domain
+        - email
+        - billing_email
+      properties:
+        name:
+          type: string
+        legal_name:
+          type: string
+        domain:
+          type: string
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+        website:
+          type: string
+        tax_id:
+          type: string
+        registration_number:
+          type: string
+        industry:
+          type: string
+        company_size:
+          type: string
+          enum: [small, medium, large, enterprise]
+        billing_email:
+          type: string
+          format: email
+        max_users:
+          type: integer
+        max_companies:
+          type: integer
+        max_locations:
+          type: integer
+        storage_limit_gb:
+          type: number
+          format: float
+    
+    UpdateOrganizationRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        legal_name:
+          type: string
+        domain:
+          type: string
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+        website:
+          type: string
+        logo:
+          type: string
+        is_active:
+          type: boolean
+    
+    # Company Schemas
+    Company:
+      allOf:
+        - $ref: '#/components/schemas/BaseModel'
+        - type: object
+          properties:
+            organization_id:
+              type: string
+              format: objectid
+            name:
+              type: string
+            legal_name:
+              type: string
+            code:
+              type: string
+            tax_id:
+              type: string
+            registration_number:
+              type: string
+            vat_number:
+              type: string
+            email:
+              type: string
+              format: email
+            phone:
+              type: string
+            address:
+              $ref: '#/components/schemas/Address'
+            is_active:
+              type: boolean
+            is_default:
+              type: boolean
+    
+    CreateCompanyRequest:
+      type: object
+      required:
+        - name
+        - legal_name
+        - code
+        - email
+        - address
+      properties:
+        name:
+          type: string
+        legal_name:
+          type: string
+        code:
+          type: string
+        tax_id:
+          type: string
+        registration_number:
+          type: string
+        vat_number:
+          type: string
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+        address:
+          $ref: '#/components/schemas/Address'
+        is_default:
+          type: boolean
+    
+    # Location Schemas
+    Location:
+      allOf:
+        - $ref: '#/components/schemas/BaseModel'
+        - type: object
+          properties:
+            company_id:
+              type: string
+              format: objectid
+            organization_id:
+              type: string
+              format: objectid
+            name:
+              type: string
+            code:
+              type: string
+            type:
+              type: string
+              enum: [head_office, branch, warehouse, store, factory, distribution_center]
+            email:
+              type: string
+              format: email
+            phone:
+              type: string
+            address:
+              $ref: '#/components/schemas/Address'
+            is_active:
+              type: boolean
+            is_default:
+              type: boolean
+    
+    CreateLocationRequest:
+      type: object
+      required:
+        - name
+        - code
+        - type
+        - email
+        - address
+      properties:
+        name:
+          type: string
+        code:
+          type: string
+        type:
+          type: string
+          enum: [head_office, branch, warehouse, store, factory, distribution_center]
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+        address:
+          $ref: '#/components/schemas/Address'
+        is_default:
+          type: boolean
+    
+    # Product Schemas
+    Product:
+      allOf:
+        - $ref: '#/components/schemas/BaseModel'
+        - type: object
+          properties:
+            organization_id:
+              type: string
+              format: objectid
+            name:
+              type: string
+            sku:
+              type: string
+            barcode:
+              type: string
+            description:
+              type: string
+            category_id:
+              type: string
+              format: objectid
+            unit_of_measure:
+              type: string
+            status:
+              type: string
+              enum: [active, inactive, discontinued]
+            track_inventory:
+              type: boolean
+            reorder_level:
+              type: integer
+            reorder_quantity:
+              type: integer
+    
+    CreateProductRequest:
+      type: object
+      required:
+        - name
+        - sku
+      properties:
+        name:
+          type: string
+        sku:
+          type: string
+        barcode:
+          type: string
+        description:
+          type: string
+        category_id:
+          type: string
+        unit_of_measure:
+          type: string
+        track_inventory:
+          type: boolean
+        reorder_level:
+          type: integer
+        reorder_quantity:
+          type: integer
+    
+    # License Schemas
+    License:
+      allOf:
+        - $ref: '#/components/schemas/BaseModel'
+        - type: object
+          properties:
+            organization_id:
+              type: string
+              format: objectid
+            application_id:
+              type: string
+              format: objectid
+            license_key:
+              type: string
+            license_type:
+              type: string
+              enum: [perpetual, subscription, trial]
+            status:
+              type: string
+              enum: [active, expired, suspended, revoked]
+            max_users:
+              type: integer
+            max_devices:
+              type: integer
+            current_users:
+              type: integer
+            current_devices:
+              type: integer
+            valid_from:
+              type: string
+              format: date-time
+            valid_until:
+              type: string
+              format: date-time
+    
+    CreateLicenseRequest:
+      type: object
+      required:
+        - application_id
+        - license_type
+      properties:
+        application_id:
+          type: string
+        license_type:
+          type: string
+          enum: [perpetual, subscription, trial]
+        max_users:
+          type: integer
+        max_devices:
+          type: integer
+        valid_from:
+          type: string
+          format: date-time
+        valid_until:
+          type: string
+          format: date-time
+    
+    # Subscription Schemas
+    SubscriptionPlan:
+      allOf:
+        - $ref: '#/components/schemas/BaseModel'
+        - type: object
+          properties:
+            name:
+              type: string
+            code:
+              type: string
+            description:
+              type: string
+            tier:
+              type: string
+              enum: [free, starter, professional, enterprise]
+            price_monthly:
+              type: number
+              format: float
+            price_yearly:
+              type: number
+              format: float
+            features:
+              type: object
+            is_active:
+              type: boolean
+            is_public:
+              type: boolean
+    
+    Subscription:
+      allOf:
+        - $ref: '#/components/schemas/BaseModel'
+        - type: object
+          properties:
+            organization_id:
+              type: string
+              format: objectid
+            plan_id:
+              type: string
+              format: objectid
+            status:
+              type: string
+              enum: [trial, active, past_due, cancelled, expired]
+            billing_cycle:
+              type: string
+              enum: [monthly, yearly]
+            current_period_start:
+              type: string
+              format: date-time
+            current_period_end:
+              type: string
+              format: date-time
+            cancel_at_period_end:
+              type: boolean
+
+paths:
+  # ======================
+  # AUTH SERVICE ENDPOINTS
+  # ======================
+  /auth/register:
+    post:
+      tags:
+        - Auth
+      summary: Register a new user
+      description: Create a new user account with email and password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Validation error or registration failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  
+  /auth/login:
+    post:
+      tags:
+        - Auth
+      summary: User login
+      description: Authenticate user with email and password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/AuthResponse'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  
+  /auth/refresh:
+    post:
+      tags:
+        - Auth
+      summary: Refresh access token
+      description: Get a new access token using refresh token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshTokenRequest'
+      responses:
+        '200':
+          description: Token refreshed successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/AuthResponse'
+        '401':
+          description: Invalid or expired refresh token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  
+  /auth/logout:
+    post:
+      tags:
+        - Auth
+      summary: User logout
+      description: Invalidate refresh token and end session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshTokenRequest'
+      responses:
+        '200':
+          description: Logged out successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          description: Logout failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  
+  /auth/google:
+    get:
+      tags:
+        - Auth
+      summary: Get Google OAuth login URL
+      description: Returns the Google OAuth authorization URL
+      responses:
+        '200':
+          description: Google login URL generated
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          url:
+                            type: string
+  
+  /auth/google/callback:
+    get:
+      tags:
+        - Auth
+      summary: Google OAuth callback
+      description: Handle Google OAuth callback with authorization code
+      parameters:
+        - name: code
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Authorization code from Google
+      responses:
+        '200':
+          description: Google login successful
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Google login failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  
+  /auth/me:
+    get:
+      tags:
+        - Auth
+      summary: Get current user profile
+      description: Returns the authenticated user's profile information
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: User profile retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/User'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  
+  # ===============================
+  # ORGANIZATION SERVICE ENDPOINTS
+  # ===============================
+  /organizations:
+    get:
+      tags:
+        - Organizations
+      summary: List organizations
+      description: Get paginated list of organizations with optional filtering
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, inactive, suspended, trial, cancelled]
+      responses:
+        '200':
+          description: Organizations retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginationResponse'
+    
+    post:
+      tags:
+        - Organizations
+      summary: Create organization
+      description: Create a new organization
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrganizationRequest'
+      responses:
+        '201':
+          description: Organization created successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Organization'
+        '400':
+          description: Validation error or creation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  
+  /organizations/{id}:
+    get:
+      tags:
+        - Organizations
+      summary: Get organization
+      description: Retrieve organization by ID
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Organization retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Organization'
+        '404':
+          description: Organization not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    
+    put:
+      tags:
+        - Organizations
+      summary: Update organization
+      description: Update existing organization
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateOrganizationRequest'
+      responses:
+        '200':
+          description: Organization updated successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Organization'
+    
+    delete:
+      tags:
+        - Organizations
+      summary: Delete organization
+      description: Soft delete an organization
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Organization deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+  
+  /organizations/{id}/companies:
+    get:
+      tags:
+        - Companies
+      summary: List companies
+      description: Get paginated list of companies under an organization
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Organization ID
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Companies retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginationResponse'
+    
+    post:
+      tags:
+        - Companies
+      summary: Create company
+      description: Create a new company under an organization
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Organization ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCompanyRequest'
+      responses:
+        '201':
+          description: Company created successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Company'
+  
+  /companies/{id}:
+    get:
+      tags:
+        - Companies
+      summary: Get company
+      description: Retrieve company by ID
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Company retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Company'
+    
+    put:
+      tags:
+        - Companies
+      summary: Update company
+      description: Update existing company
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                legal_name:
+                  type: string
+                email:
+                  type: string
+                is_active:
+                  type: boolean
+      responses:
+        '200':
+          description: Company updated successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Company'
+    
+    delete:
+      tags:
+        - Companies
+      summary: Delete company
+      description: Soft delete a company
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Company deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+  
+  /companies/{id}/locations:
+    get:
+      tags:
+        - Locations
+      summary: List locations
+      description: Get paginated list of locations under a company
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Company ID
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Locations retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginationResponse'
+    
+    post:
+      tags:
+        - Locations
+      summary: Create location
+      description: Create a new location under a company
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Company ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateLocationRequest'
+      responses:
+        '201':
+          description: Location created successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Location'
+  
+  /locations/{id}:
+    get:
+      tags:
+        - Locations
+      summary: Get location
+      description: Retrieve location by ID
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Location retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Location'
+  
+  # ===============================
+  # INVENTORY SERVICE ENDPOINTS
+  # ===============================
+  /organizations/{org_id}/products:
+    get:
+      tags:
+        - Inventory
+      summary: List products
+      description: Get paginated list of products with optional filters
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Products retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+    
+    post:
+      tags:
+        - Inventory
+      summary: Create product
+      description: Create a new product
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateProductRequest'
+      responses:
+        '201':
+          description: Product created successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Product'
+  
+  /products/{id}:
+    get:
+      tags:
+        - Inventory
+      summary: Get product
+      description: Retrieve product by ID
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Product retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Product'
+    
+    put:
+      tags:
+        - Inventory
+      summary: Update product
+      description: Update existing product
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateProductRequest'
+      responses:
+        '200':
+          description: Product updated successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Product'
+    
+    delete:
+      tags:
+        - Inventory
+      summary: Delete product
+      description: Soft delete a product
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Product deleted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+  
+  /organizations/{org_id}/stock-movements:
+    post:
+      tags:
+        - Inventory
+      summary: Create stock movement
+      description: Create a new stock movement (in/out/adjustment)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - product_id
+                - location_id
+                - movement_type
+                - quantity
+              properties:
+                product_id:
+                  type: string
+                location_id:
+                  type: string
+                movement_type:
+                  type: string
+                  enum: [in, out, adjustment, transfer]
+                quantity:
+                  type: integer
+                reference:
+                  type: string
+                notes:
+                  type: string
+      responses:
+        '201':
+          description: Stock movement created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+  
+  # ===============================
+  # LICENSE SERVICE ENDPOINTS
+  # ===============================
+  /organizations/{org_id}/licenses:
+    get:
+      tags:
+        - Licenses
+      summary: List licenses by organization
+      description: Get paginated list of licenses for an organization
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Licenses retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+    
+    post:
+      tags:
+        - Licenses
+      summary: Create license
+      description: Create a new license for an organization
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateLicenseRequest'
+      responses:
+        '201':
+          description: License created successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/License'
+  
+  /licenses/{id}:
+    get:
+      tags:
+        - Licenses
+      summary: Get license
+      description: Retrieve license by ID
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: License retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/License'
+  
+  /licenses/{id}/suspend:
+    post:
+      tags:
+        - Licenses
+      summary: Suspend license
+      description: Suspend an active license
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+      responses:
+        '200':
+          description: License suspended successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+  
+  /applications:
+    get:
+      tags:
+        - Applications
+      summary: List applications
+      description: Get list of available applications (public endpoint)
+      responses:
+        '200':
+          description: Applications retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+    
+    post:
+      tags:
+        - Applications
+      summary: Create application
+      description: Create a new application (admin only)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - code
+              properties:
+                name:
+                  type: string
+                code:
+                  type: string
+                description:
+                  type: string
+                version:
+                  type: string
+      responses:
+        '201':
+          description: Application created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+  
+  # ===============================
+  # SUBSCRIPTION SERVICE ENDPOINTS
+  # ===============================
+  /plans:
+    get:
+      tags:
+        - Plans
+      summary: List subscription plans
+      description: Get list of subscription plans (public endpoint)
+      parameters:
+        - name: tier
+          in: query
+          schema:
+            type: string
+            enum: [free, starter, professional, enterprise]
+        - name: public
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Plans retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+    
+    post:
+      tags:
+        - Plans
+      summary: Create plan
+      description: Create a new subscription plan (admin only)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - code
+                - tier
+              properties:
+                name:
+                  type: string
+                code:
+                  type: string
+                description:
+                  type: string
+                tier:
+                  type: string
+                  enum: [free, starter, professional, enterprise]
+                price_monthly:
+                  type: number
+                price_yearly:
+                  type: number
+                is_public:
+                  type: boolean
+      responses:
+        '201':
+          description: Plan created successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/SubscriptionPlan'
+  
+  /plans/{id}:
+    get:
+      tags:
+        - Plans
+      summary: Get plan
+      description: Retrieve subscription plan by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Plan retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/SubscriptionPlan'
+  
+  /organizations/{org_id}/subscription:
+    get:
+      tags:
+        - Subscriptions
+      summary: Get subscription
+      description: Get organization's current subscription
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Subscription retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Subscription'
+    
+    post:
+      tags:
+        - Subscriptions
+      summary: Subscribe
+      description: Create a subscription for an organization
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - plan_id
+                - billing_cycle
+              properties:
+                plan_id:
+                  type: string
+                billing_cycle:
+                  type: string
+                  enum: [monthly, yearly]
+                start_trial:
+                  type: boolean
+      responses:
+        '201':
+          description: Subscription created successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Subscription'
+  
+  /organizations/{org_id}/subscription/cancel:
+    post:
+      tags:
+        - Subscriptions
+      summary: Cancel subscription
+      description: Cancel organization's subscription
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: org_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                immediate:
+                  type: boolean
+                  description: Cancel immediately or at period end
+                reason:
+                  type: string
+      responses:
+        '200':
+          description: Subscription cancelled successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
