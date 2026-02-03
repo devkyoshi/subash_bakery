@@ -132,6 +132,32 @@ func (r *StockLevelRepository) Upsert(ctx context.Context, stock *models.StockLe
 	return err
 }
 
+func (r *StockLevelRepository) Find(ctx context.Context, filters map[string]interface{}, page, limit int) ([]models.StockLevel, error) {
+	bsonFilters := bson.M{}
+	for k, v := range filters {
+		bsonFilters[k] = v
+	}
+
+	opts := options.Find().SetSort(bson.D{{Key: "created_at", Value: -1}})
+	if limit > 0 {
+		opts.SetLimit(int64(limit))
+		opts.SetSkip(int64((page - 1) * limit))
+	}
+
+	cursor, err := r.collection.Find(ctx, bsonFilters, opts)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	// Initialize empty slice to ensure JSON array [] instead of null
+	stocks := make([]models.StockLevel, 0)
+	if err = cursor.All(ctx, &stocks); err != nil {
+		return nil, err
+	}
+	return stocks, nil
+}
+
 func (r *StockLevelRepository) AdjustQuantity(ctx context.Context, orgID, productID, locationID primitive.ObjectID, delta float64, cost float64) error {
 	filter := bson.M{
 		"product_id":  productID,

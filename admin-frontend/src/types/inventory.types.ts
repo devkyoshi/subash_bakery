@@ -5,6 +5,9 @@ export interface StockLevel {
   organization_id: string;
   product_id: string;
   location_id: string;
+  product_name?: string;
+  sku?: string;
+  location_name?: string;
   warehouse_zone?: string;
   quantity_on_hand: number;
   quantity_available: number;

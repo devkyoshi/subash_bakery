@@ -224,6 +224,11 @@ type StockLevel struct {
 	LocationID     primitive.ObjectID `bson:"location_id" json:"location_id" binding:"required"`
 	WarehouseZone  string             `bson:"warehouse_zone" json:"warehouse_zone"` // e.g., "A-01-05"
 
+	// Populated Fields
+	ProductName  string `bson:"-" json:"product_name,omitempty"`
+	SKU          string `bson:"-" json:"sku,omitempty"`
+	LocationName string `bson:"-" json:"location_name,omitempty"`
+
 	// Quantities
 	QuantityOnHand    float64 `bson:"quantity_on_hand" json:"quantity_on_hand"`
 	QuantityAvailable float64 `bson:"quantity_available" json:"quantity_available"` // On hand - allocated

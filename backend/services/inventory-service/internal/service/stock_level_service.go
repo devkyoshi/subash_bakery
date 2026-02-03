@@ -52,6 +52,11 @@ func (s *StockLevelService) GetStockByLocation(ctx context.Context, locationID p
 	return stocks, nil
 }
 
+// ListStockLevels retrieves stock levels with filters and pagination
+func (s *StockLevelService) ListStockLevels(ctx context.Context, filters map[string]interface{}, page, limit int) ([]models.StockLevel, error) {
+	return s.stockRepo.Find(ctx, filters, page, limit)
+}
+
 // UpsertStockLevel creates or updates stock level
 func (s *StockLevelService) UpsertStockLevel(ctx context.Context, stock *models.StockLevel) error {
 	if err := s.stockRepo.Upsert(ctx, stock); err != nil {

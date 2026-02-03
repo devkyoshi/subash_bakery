@@ -156,12 +156,23 @@ export function InventoryPage() {
                         <TableCell className="font-medium">
                           <div className="flex items-center gap-2">
                             <Package className="h-4 w-4 text-muted-foreground" />
-                            <span>Product {stock.product_id.slice(-6)}</span>
+                            <div>
+                              <div>
+                                {stock.product_name ||
+                                  `Product ${stock.product_id.slice(-6)}`}
+                              </div>
+                              {stock.sku && (
+                                <div className="text-xs text-muted-foreground">
+                                  {stock.sku}
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </TableCell>
                         <TableCell>
                           <span className="text-sm">
-                            Location {stock.location_id.slice(-6)}
+                            {stock.location_name ||
+                              `Location ${stock.location_id.slice(-6)}`}
                           </span>
                         </TableCell>
                         <TableCell className="text-right font-medium">

@@ -12,6 +12,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 
 	"github.com/yourusername/erp-system/services/inventory-service/config"
+	"github.com/yourusername/erp-system/services/inventory-service/internal/client"
 	"github.com/yourusername/erp-system/services/inventory-service/internal/handlers"
 	"github.com/yourusername/erp-system/services/inventory-service/internal/repository"
 	"github.com/yourusername/erp-system/services/inventory-service/internal/service"
@@ -26,18 +27,18 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	client, err := mongo.Connect(ctx, options.Client().ApplyURI(cfg.MongoURI))
+	mongoClient, err := mongo.Connect(ctx, options.Client().ApplyURI(cfg.MongoURI))
 	if err != nil {
 		log.Fatalf("Failed to connect to MongoDB: %v", err)
 	}
-	defer client.Disconnect(context.Background())
+	defer mongoClient.Disconnect(context.Background())
 
-	if err := client.Ping(ctx, nil); err != nil {
+	if err := mongoClient.Ping(ctx, nil); err != nil {
 		log.Fatalf("Failed to ping MongoDB: %v", err)
 	}
 
 	log.Println("Connected to MongoDB successfully")
-	db := client.Database("erp_inventory")
+	db := mongoClient.Database("erp_inventory")
 
 	// Create indexes
 	if err := createIndexes(db); err != nil {
@@ -64,6 +65,10 @@ func main() {
 	unitService := service.NewUnitService(unitRepo, unitChartRepo)
 	unitChartService := service.NewUnitChartService(unitChartRepo, unitRepo)
 
+	// Initialize clients
+	productClient := client.NewProductClient(cfg)
+	orgClient := client.NewOrgClient(cfg)
+
 	// Initialize handlers
 	inventoryHandler := handlers.NewInventoryHandler(
 		stockLevelService,
@@ -72,6 +77,8 @@ func main() {
 		adjustmentService,
 		countService,
 		serialNumberService,
+		productClient,
+		orgClient,
 	)
 	unitHandler := handlers.NewUnitHandler(unitService)
 	unitChartHandler := handlers.NewUnitChartHandler(unitChartService)

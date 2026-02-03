@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/yourusername/erp-system/services/inventory-service/internal/client"
 	"github.com/yourusername/erp-system/services/inventory-service/internal/service"
 	"github.com/yourusername/erp-system/shared/middleware"
 	"github.com/yourusername/erp-system/shared/utils"
@@ -26,9 +27,11 @@ func NewInventoryHandler(
 	adjustmentService *service.StockAdjustmentService,
 	countService *service.InventoryCountService,
 	serialNumberService *service.SerialNumberService,
+	productClient *client.ProductClient,
+	orgClient *client.OrgClient,
 ) *InventoryHandler {
 	return &InventoryHandler{
-		stockLevelHandler:      NewStockLevelHandler(stockLevelService),
+		stockLevelHandler:      NewStockLevelHandler(stockLevelService, productClient, orgClient),
 		stockMovementHandler:   NewStockMovementHandler(stockService),
 		batchHandler:           NewBatchHandler(batchService),
 		stockAdjustmentHandler: NewStockAdjustmentHandler(adjustmentService),
@@ -43,14 +46,15 @@ func (h *InventoryHandler) RegisterRoutes(api *gin.RouterGroup, jwtManager *util
 	api.GET("/health", func(c *gin.Context) {
 		utils.SuccessResponse(c, http.StatusOK, map[string]string{"status": "healthy"}, "Inventory Service is running")
 	})
-	api.POST("/stock/bulk", h.stockLevelHandler.GetStockLevelsBatch)
+	api.POST("/inventory/stock/bulk", h.stockLevelHandler.GetStockLevelsBatch)
 
 	// Protected routes
-	protected := api.Group("/")
+	protected := api.Group("/inventory")
 	protected.Use(middleware.AuthMiddleware(jwtManager))
 
 	// Stock level routes
-	protected.GET("/stock-levels", h.stockLevelHandler.GetStockLevel)
+	protected.GET("/stock-levels", h.stockLevelHandler.ListStockLevels)
+	protected.GET("/stock-levels/item", h.stockLevelHandler.GetStockLevel) // Re-map single item fetch if needed, or rely on List with filters
 	protected.GET("/products/:product_id/stock", h.stockLevelHandler.GetStockByProduct)
 	protected.GET("/locations/:location_id/stock", h.stockLevelHandler.GetStockByLocation)
 	protected.POST("/stock/allocate", h.stockLevelHandler.AllocateStock)

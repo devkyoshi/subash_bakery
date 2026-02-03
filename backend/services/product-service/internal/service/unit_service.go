@@ -28,6 +28,7 @@ type UnitResponse struct {
 	ID          primitive.ObjectID       `json:"id"`
 	Name        string                   `json:"name"`
 	Code        string                   `json:"code"`
+	Symbol      string                   `json:"symbol"`
 	UnitType    string                   `json:"unit_type"`
 	IsBaseUnit  bool                     `json:"is_base_unit"`
 	Conversions []UnitConversionResponse `json:"conversions,omitempty"`
@@ -47,6 +48,7 @@ func (s *UnitService) ListUnits(ctx context.Context) ([]UnitResponse, error) {
 			ID:         u.ID,
 			Name:       u.Name,
 			Code:       u.Code,
+			Symbol:     u.Symbol,
 			UnitType:   u.UnitType,
 			IsBaseUnit: u.IsBaseUnit,
 		})
@@ -99,6 +101,7 @@ func (s *UnitService) ListUnitsWithConversion(ctx context.Context) ([]UnitRespon
 			ID:          u.ID,
 			Name:        u.Name,
 			Code:        u.Code,
+			Symbol:      u.Symbol,
 			UnitType:    u.UnitType,
 			IsBaseUnit:  u.IsBaseUnit,
 			Conversions: conversionsMap[u.ID],
