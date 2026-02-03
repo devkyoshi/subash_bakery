@@ -183,18 +183,18 @@ func (s *StockService) GetStockMovement(ctx context.Context, id primitive.Object
 	return s.movementRepo.FindByID(ctx, id)
 }
 
-func (s *StockService) ListStockMovements(ctx context.Context, organizationID primitive.ObjectID, filters map[string]interface{}, page, limit int) ([]models.StockMovement, error) {
+func (s *StockService) ListStockMovements(ctx context.Context, organizationID primitive.ObjectID, filters map[string]interface{}, page, limit int) ([]*models.StockMovement, error) {
 	filters["organization_id"] = organizationID
 	// Only get non-deleted records (deleted_at is nil or doesn't exist)
 	filters["deleted_at"] = bson.M{"$exists": false}
 	return s.movementRepo.Find(ctx, filters, page, limit)
 }
 
-func (s *StockService) GetStockMovementsByLocation(ctx context.Context, locationID primitive.ObjectID) ([]models.StockMovement, error) {
+func (s *StockService) GetStockMovementsByLocation(ctx context.Context, locationID primitive.ObjectID) ([]*models.StockMovement, error) {
 	filters := map[string]interface{}{
 		"$or": []bson.M{
-			bson.M{"from_location_id": locationID},
-			bson.M{"to_location_id": locationID},
+			{"from_location_id": locationID},
+			{"to_location_id": locationID},
 		},
 		"deleted_at": bson.M{"$exists": false},
 	}

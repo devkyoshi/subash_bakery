@@ -176,16 +176,19 @@ export function StockMovementsPage() {
                           </Badge>
                         </TableCell>
                         <TableCell className="font-medium">
-                          Product {movement.product_id.slice(-6)}
+                          {movement.product_name ||
+                            `Product ${movement.product_id.slice(-6)}`}
                         </TableCell>
                         <TableCell>
                           {movement.from_location_id
-                            ? `Loc ${movement.from_location_id.slice(-6)}`
+                            ? movement.from_location_name ||
+                              `Loc ${movement.from_location_id.slice(-6)}`
                             : "-"}
                         </TableCell>
                         <TableCell>
                           {movement.to_location_id
-                            ? `Loc ${movement.to_location_id.slice(-6)}`
+                            ? movement.to_location_name ||
+                              `Loc ${movement.to_location_id.slice(-6)}`
                             : "-"}
                         </TableCell>
                         <TableCell className="text-right font-medium">

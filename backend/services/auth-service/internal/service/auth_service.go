@@ -347,6 +347,24 @@ func (s *AuthService) GetMe(ctx context.Context, userID string) (*AuthResponse, 
 	}, nil
 }
 
+// GetUser returns a user's profile by ID
+func (s *AuthService) GetUser(ctx context.Context, userID string) (*models.User, error) {
+	id, err := primitive.ObjectIDFromHex(userID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid user ID: %w", err)
+	}
+
+	user, err := s.userRepo.FindByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if user == nil {
+		return nil, fmt.Errorf("user not found")
+	}
+
+	return user, nil
+}
+
 // Helper to fetch role and permissions
 func (s *AuthService) getRoleResponse(ctx context.Context, roleID primitive.ObjectID) (*RoleResponse, error) {
 	if roleID.IsZero() {

@@ -90,6 +90,8 @@ func main() {
 			}
 		} else if strings.HasPrefix(path, "/categories") || strings.HasPrefix(path, "/brands") || strings.HasPrefix(path, "/attributes") || strings.HasPrefix(path, "/units") {
 			targetURL = cfg.ProductServiceURL
+		} else if strings.HasPrefix(path, "/unit-charts") {
+			targetURL = cfg.InventoryServiceURL
 		} else {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Service not found"})
 			return

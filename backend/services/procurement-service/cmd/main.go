@@ -13,6 +13,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 
 	"github.com/yourusername/erp-system/services/procurement-service/config"
+	"github.com/yourusername/erp-system/services/procurement-service/internal/client"
 	"github.com/yourusername/erp-system/services/procurement-service/internal/handlers"
 	"github.com/yourusername/erp-system/services/procurement-service/internal/repository"
 	"github.com/yourusername/erp-system/services/procurement-service/internal/service"
@@ -24,19 +25,19 @@ func main() {
 	cfg := config.LoadConfig()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	
-	client, err := mongo.Connect(ctx, options.Client().ApplyURI(cfg.MongoURI))
+
+	mongoClient, err := mongo.Connect(ctx, options.Client().ApplyURI(cfg.MongoURI))
 	if err != nil {
 		log.Fatalf("Failed to connect to MongoDB: %v", err)
 	}
-	defer client.Disconnect(context.Background())
-	
-	if err := client.Ping(ctx, nil); err != nil {
+	defer mongoClient.Disconnect(context.Background())
+
+	if err := mongoClient.Ping(ctx, nil); err != nil {
 		log.Fatalf("Failed to ping MongoDB: %v", err)
 	}
-	
+
 	log.Println("Connected to MongoDB successfully")
-	db := client.Database("erp_procurement")
+	db := mongoClient.Database("erp_procurement")
 
 	// Create indexes
 	if err := createIndexes(db); err != nil {
@@ -48,8 +49,13 @@ func main() {
 	poRepo := repository.NewPurchaseOrderRepository(db)
 	grnRepo := repository.NewGRNRepository(db)
 
+	// Initialize clients
+	productClient := client.NewProductClient(cfg)
+	userClient := client.NewUserClient(cfg)
+	inventoryClient := client.NewInventoryClient(cfg)
+
 	// Initialize services
-	procurementService := service.NewProcurementService(supplierRepo, poRepo, grnRepo)
+	procurementService := service.NewProcurementService(supplierRepo, poRepo, grnRepo, productClient, userClient, inventoryClient)
 
 	// Initialize handlers
 	procurementHandler := handlers.NewProcurementHandler(procurementService)
@@ -64,7 +70,7 @@ func main() {
 
 	router := gin.Default()
 	router.Use(middleware.CORSMiddleware())
-	
+
 	// Rate limiting
 	redisClient := redis.NewClient(&redis.Options{
 		Addr: cfg.RedisAddr,

@@ -236,7 +236,15 @@ export function StockAdjustmentDetailsPage() {
                   {adjustment.items.map((item, index) => (
                     <TableRow key={index}>
                       <TableCell className="font-medium">
-                        Product {item.product_id.slice(-6)}
+                        <div>
+                          {item.product_name ||
+                            `Product ${item.product_id.slice(-6)}`}
+                        </div>
+                        {item.sku && (
+                          <div className="text-xs text-muted-foreground">
+                            {item.sku}
+                          </div>
+                        )}
                       </TableCell>
                       <TableCell className="text-right">
                         {item.expected_qty.toFixed(2)}
@@ -259,7 +267,7 @@ export function StockAdjustmentDetailsPage() {
                         </span>
                       </TableCell>
                       <TableCell className="text-right">
-                        ${item.total_cost.toFixed(2)}
+                        ${item.total_cost?.toFixed(2) || "0.00"}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -304,7 +312,8 @@ export function StockAdjustmentDetailsPage() {
               <div>
                 <span className="text-sm text-muted-foreground">Location</span>
                 <div className="font-medium">
-                  Location {adjustment.location_id.slice(-6)}
+                  {adjustment.location_name ||
+                    `Location ${adjustment.location_id.slice(-6)}`}
                 </div>
               </div>
               <Separator />
@@ -325,7 +334,8 @@ export function StockAdjustmentDetailsPage() {
                       Approved By
                     </span>
                     <div className="font-medium">
-                      {adjustment.approved_by.slice(-6)}
+                      {adjustment.approved_by_name ||
+                        adjustment.approved_by.slice(-6)}
                     </div>
                     {adjustment.approved_at && (
                       <p className="text-sm text-muted-foreground">

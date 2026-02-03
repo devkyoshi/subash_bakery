@@ -129,7 +129,7 @@ export function GRNListPage() {
                 <TableRow>
                   <TableHead>GRN Number</TableHead>
                   <TableHead>PO Number</TableHead>
-                  <TableHead>Date Received</TableHead>
+                  <TableHead>Supplier</TableHead>
                   <TableHead>Received By</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>QC</TableHead>
@@ -160,13 +160,17 @@ export function GRNListPage() {
                         </div>
                       </TableCell>
                       <TableCell>{grn.po_number || "-"}</TableCell>
+                      <TableCell>{grn.supplier_name || "-"}</TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-2">
-                          <CalendarDays className="h-4 w-4 text-muted-foreground" />
-                          {format(new Date(grn.receipt_date), "MMM dd, yyyy")}
+                        <div>
+                          <div className="font-medium">
+                            {grn.received_by_name || grn.received_by}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {format(new Date(grn.receipt_date), "MMM dd, yyyy")}
+                          </div>
                         </div>
                       </TableCell>
-                      <TableCell>{grn.received_by}</TableCell>
                       <TableCell>
                         <Badge variant={getStatusBadgeVariant(grn.status)}>
                           {grn.status?.toUpperCase()}
@@ -174,7 +178,9 @@ export function GRNListPage() {
                       </TableCell>
                       <TableCell>
                         {grn.qc_status ? (
-                          <Badge variant="outline">{grn.qc_status?.toUpperCase()}</Badge>
+                          <Badge variant="outline">
+                            {grn.qc_status?.toUpperCase()}
+                          </Badge>
                         ) : (
                           "-"
                         )}

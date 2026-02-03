@@ -29,12 +29,13 @@ func NewInventoryHandler(
 	serialNumberService *service.SerialNumberService,
 	productClient *client.ProductClient,
 	orgClient *client.OrgClient,
+	userClient *client.UserClient,
 ) *InventoryHandler {
 	return &InventoryHandler{
 		stockLevelHandler:      NewStockLevelHandler(stockLevelService, productClient, orgClient),
-		stockMovementHandler:   NewStockMovementHandler(stockService),
+		stockMovementHandler:   NewStockMovementHandler(stockService, productClient, orgClient),
 		batchHandler:           NewBatchHandler(batchService),
-		stockAdjustmentHandler: NewStockAdjustmentHandler(adjustmentService),
+		stockAdjustmentHandler: NewStockAdjustmentHandler(adjustmentService, productClient, orgClient, userClient),
 		inventoryCountHandler:  NewInventoryCountHandler(countService),
 		serialNumberHandler:    NewSerialNumberHandler(serialNumberService),
 	}

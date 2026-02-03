@@ -120,6 +120,7 @@ export interface PurchaseOrder {
   tags?: string[];
   created_at: string;
   updated_at: string;
+  supplier_name?: string;
 }
 
 export interface CreatePurchaseOrderRequest {
@@ -163,6 +164,7 @@ export interface GoodsReceiptNote {
   received_by_name?: string;
   items: GRNItem[];
   inspected_by?: string;
+  inspected_by_name?: string;
   inspected_date?: string;
   qc_status?: string;
   qc_notes?: string;
@@ -171,6 +173,9 @@ export interface GoodsReceiptNote {
   notes?: string;
   created_at: string;
   updated_at: string;
+  // Enriched fields
+  supplier_name?: string;
+  location_name?: string;
 }
 
 export interface CreateGRNRequest {

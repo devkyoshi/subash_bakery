@@ -356,7 +356,7 @@ func (r *StockMovementRepository) FindByID(ctx context.Context, id primitive.Obj
 	return &movement, nil
 }
 
-func (r *StockMovementRepository) Find(ctx context.Context, filters map[string]interface{}, page, limit int) ([]models.StockMovement, error) {
+func (r *StockMovementRepository) Find(ctx context.Context, filters map[string]interface{}, page, limit int) ([]*models.StockMovement, error) {
 	skip := (page - 1) * limit
 	opts := options.Find().
 		SetSort(bson.D{{Key: "created_at", Value: -1}}).
@@ -371,14 +371,14 @@ func (r *StockMovementRepository) Find(ctx context.Context, filters map[string]i
 
 	cursor, err := r.collection.Find(ctx, bsonFilters, opts)
 	if err != nil {
-		return []models.StockMovement{}, err
+		return []*models.StockMovement{}, err
 	}
 	defer cursor.Close(ctx)
 
 	// Initialize with empty slice instead of nil to avoid JSON null
-	movements := make([]models.StockMovement, 0)
+	movements := make([]*models.StockMovement, 0)
 	if err = cursor.All(ctx, &movements); err != nil {
-		return []models.StockMovement{}, err
+		return []*models.StockMovement{}, err
 	}
 
 	return movements, nil

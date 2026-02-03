@@ -236,8 +236,15 @@ func (s *StockAdjustmentService) ApproveAdjustment(ctx context.Context, id, appr
 	}
 
 	// Update adjustment status
-	if err := s.adjustmentRepo.UpdateStatus(ctx, id, "approved", approvedBy); err != nil {
-		return fmt.Errorf("failed to update adjustment status: %w", err)
+	updates := map[string]interface{}{
+		"status":      "approved",
+		"approved_by": approvedBy,
+		"approved_at": time.Now(),
+		"updated_by":  approvedBy,
+	}
+
+	if err := s.adjustmentRepo.Update(ctx, id, updates); err != nil {
+		return fmt.Errorf("failed to approve adjustment: %w", err)
 	}
 
 	return nil

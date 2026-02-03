@@ -38,7 +38,7 @@ func (c *InventoryClient) GetStockLevels(ctx context.Context, productIDs []primi
 		return map[string]*models.StockLevel{}, nil
 	}
 
-	url := fmt.Sprintf("%s/api/v1/stock/bulk", c.BaseURL)
+	url := fmt.Sprintf("%s/api/v1/inventory/stock/bulk", c.BaseURL)
 
 	idStrings := make([]string, len(productIDs))
 	for i, id := range productIDs {
@@ -101,7 +101,7 @@ type AdjustmentResponse struct {
 }
 
 func (c *InventoryClient) CreateStockAdjustment(ctx context.Context, token string, orgID primitive.ObjectID, reqBody CreateAdjustmentRequest) (string, error) {
-	url := fmt.Sprintf("%s/api/v1/organizations/%s/stock-adjustments", c.BaseURL, orgID.Hex())
+	url := fmt.Sprintf("%s/api/v1/inventory/organizations/%s/stock-adjustments", c.BaseURL, orgID.Hex())
 
 	jsonBody, err := json.Marshal(reqBody)
 	if err != nil {
@@ -140,7 +140,7 @@ func (c *InventoryClient) CreateStockAdjustment(ctx context.Context, token strin
 }
 
 func (c *InventoryClient) ApproveStockAdjustment(ctx context.Context, token string, adjustmentID string) error {
-	url := fmt.Sprintf("%s/api/v1/stock-adjustments/%s/approve", c.BaseURL, adjustmentID)
+	url := fmt.Sprintf("%s/api/v1/inventory/stock-adjustments/%s/approve", c.BaseURL, adjustmentID)
 
 	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer([]byte("{}")))
 	if err != nil {

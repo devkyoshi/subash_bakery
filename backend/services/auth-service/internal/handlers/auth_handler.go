@@ -239,6 +239,9 @@ func (h *AuthHandler) UpdateUserOrganization(c *gin.Context) {
 func (h *AuthHandler) RegisterRoutes(router *gin.RouterGroup, jwtManager *utils.JWTManager) {
 	auth := router.Group("/auth")
 	{
+		// Public routes
+		auth.GET("/users/:id", h.GetUser)
+
 		auth.POST("/register", h.Register)
 		auth.POST("/login", h.Login)
 		auth.POST("/refresh", h.RefreshToken)
@@ -254,4 +257,28 @@ func (h *AuthHandler) RegisterRoutes(router *gin.RouterGroup, jwtManager *utils.
 			protected.PUT("/users/:id/organization", h.UpdateUserOrganization)
 		}
 	}
+}
+
+// GetUser returns a user by ID
+// @Summary Get user by ID
+// @Tags auth
+// @Produce json
+// @Param id path string true "User ID"
+// @Success 200 {object} utils.Response
+// @Failure 404 {object} utils.Response
+// @Router /auth/users/{id} [get]
+func (h *AuthHandler) GetUser(c *gin.Context) {
+	userID := c.Param("id")
+	if userID == "" {
+		utils.ErrorResponse(c, http.StatusBadRequest, "INVALID_ID", "User ID is required", nil)
+		return
+	}
+
+	user, err := h.authService.GetUser(c.Request.Context(), userID)
+	if err != nil {
+		utils.ErrorResponse(c, http.StatusNotFound, "USER_NOT_FOUND", err.Error(), nil)
+		return
+	}
+
+	utils.SuccessResponse(c, http.StatusOK, user, "User retrieved successfully")
 }

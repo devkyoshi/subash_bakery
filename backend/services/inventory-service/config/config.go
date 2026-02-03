@@ -16,6 +16,7 @@ type Config struct {
 	Environment       string
 	ProductServiceURL string
 	OrgServiceURL     string
+	AuthServiceURL    string
 }
 
 func LoadConfig() *Config {
@@ -30,6 +31,7 @@ func LoadConfig() *Config {
 		Environment:       getEnv("ENVIRONMENT", "development"),
 		ProductServiceURL: getEnv("PRODUCT_SERVICE_URL", "http://product-service:8003"),
 		OrgServiceURL:     getEnv("ORG_SERVICE_URL", "http://org-service:8002"),
+		AuthServiceURL:    getEnv("AUTH_SERVICE_URL", "http://auth-service:8001"),
 	}
 }
 

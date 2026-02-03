@@ -187,7 +187,7 @@ export function StockAdjustmentsPage() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        Location {adjustment.location_id.slice(-6)}
+                        {adjustment.location_name || adjustment.location_id}
                       </TableCell>
                       <TableCell>{adjustment.reason}</TableCell>
                       <TableCell>{adjustment.items.length}</TableCell>

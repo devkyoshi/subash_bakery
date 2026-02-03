@@ -68,6 +68,7 @@ func main() {
 	// Initialize clients
 	productClient := client.NewProductClient(cfg)
 	orgClient := client.NewOrgClient(cfg)
+	userClient := client.NewUserClient(cfg)
 
 	// Initialize handlers
 	inventoryHandler := handlers.NewInventoryHandler(
@@ -79,6 +80,7 @@ func main() {
 		serialNumberService,
 		productClient,
 		orgClient,
+		userClient,
 	)
 	unitHandler := handlers.NewUnitHandler(unitService)
 	unitChartHandler := handlers.NewUnitChartHandler(unitChartService)

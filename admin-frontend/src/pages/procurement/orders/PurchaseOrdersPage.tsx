@@ -164,16 +164,8 @@ export function PurchaseOrdersPage() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        {/* We might need to fetch supplier name or include it in aggregation. 
-                            For now, assuming supplier_id or extra logic. 
-                            Ideally, the backend list endpoint should populate supplier name.
-                            Checking type definition... it has supplier_id. 
-                            We'll display ID for now or 'Loading...' if we don't have name. 
-                            IMPROVEMENT: specific fetch or expanded DTO. 
-                        */}
-                        <span className="font-medium text-muted-foreground">
-                          {/* Placeholder until we have supplier name populated */}
-                          Supplier {order.supplier_id.slice(-6)}
+                        <span className="font-medium">
+                          {order.supplier_name || "-"}
                         </span>
                       </TableCell>
                       <TableCell>

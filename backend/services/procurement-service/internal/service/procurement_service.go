@@ -7,46 +7,56 @@ import (
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
 
+	"github.com/yourusername/erp-system/services/procurement-service/internal/client"
 	"github.com/yourusername/erp-system/services/procurement-service/internal/repository"
 	"github.com/yourusername/erp-system/shared/models"
 )
 
 type ProcurementService struct {
-	supplierRepo *repository.SupplierRepository
-	poRepo       *repository.PurchaseOrderRepository
-	grnRepo      *repository.GRNRepository
+	supplierRepo    *repository.SupplierRepository
+	poRepo          *repository.PurchaseOrderRepository
+	grnRepo         *repository.GRNRepository
+	productClient   *client.ProductClient
+	userClient      *client.UserClient
+	inventoryClient *client.InventoryClient
 }
 
 func NewProcurementService(
 	supplierRepo *repository.SupplierRepository,
 	poRepo *repository.PurchaseOrderRepository,
 	grnRepo *repository.GRNRepository,
+	productClient *client.ProductClient,
+	userClient *client.UserClient,
+	inventoryClient *client.InventoryClient,
 ) *ProcurementService {
 	return &ProcurementService{
-		supplierRepo: supplierRepo,
-		poRepo:       poRepo,
-		grnRepo:      grnRepo,
+		supplierRepo:    supplierRepo,
+		poRepo:          poRepo,
+		grnRepo:         grnRepo,
+		productClient:   productClient,
+		userClient:      userClient,
+		inventoryClient: inventoryClient,
 	}
 }
 
 // ============== Supplier Operations ==============
 
 type CreateSupplierRequest struct {
-	CompanyName    string          `json:"company_name" binding:"required"`
-	ContactPerson  string          `json:"contact_person" binding:"required"`
-	Email          string          `json:"email" binding:"required,email"`
-	Phone          string          `json:"phone,omitempty"`
-	Mobile         string          `json:"mobile,omitempty"`
-	Website        string          `json:"website,omitempty"`
-	Address        *models.Address `json:"address,omitempty"`
-	TaxID          string          `json:"tax_id,omitempty"`
-	PaymentTerms   int             `json:"payment_terms,omitempty"`
-	CreditLimit    float64         `json:"credit_limit,omitempty"`
-	BankName       string          `json:"bank_name,omitempty"`
-	AccountNumber  string          `json:"account_number,omitempty"`
-	SwiftCode      string          `json:"swift_code,omitempty"`
-	Tags           []string        `json:"tags,omitempty"`
-	Notes          string          `json:"notes,omitempty"`
+	CompanyName   string          `json:"company_name" binding:"required"`
+	ContactPerson string          `json:"contact_person" binding:"required"`
+	Email         string          `json:"email" binding:"required,email"`
+	Phone         string          `json:"phone,omitempty"`
+	Mobile        string          `json:"mobile,omitempty"`
+	Website       string          `json:"website,omitempty"`
+	Address       *models.Address `json:"address,omitempty"`
+	TaxID         string          `json:"tax_id,omitempty"`
+	PaymentTerms  int             `json:"payment_terms,omitempty"`
+	CreditLimit   float64         `json:"credit_limit,omitempty"`
+	BankName      string          `json:"bank_name,omitempty"`
+	AccountNumber string          `json:"account_number,omitempty"`
+	SwiftCode     string          `json:"swift_code,omitempty"`
+	Tags          []string        `json:"tags,omitempty"`
+	Notes         string          `json:"notes,omitempty"`
 }
 
 func (s *ProcurementService) CreateSupplier(ctx context.Context, orgID primitive.ObjectID, req CreateSupplierRequest, createdBy primitive.ObjectID) (*models.Supplier, error) {
@@ -142,15 +152,15 @@ func (s *ProcurementService) DeleteSupplier(ctx context.Context, id, deletedBy p
 // ============== Purchase Order Operations ==============
 
 type CreatePurchaseOrderRequest struct {
-	SupplierID       primitive.ObjectID            `json:"supplier_id" binding:"required"`
-	OrderDate        time.Time                     `json:"order_date" binding:"required"`
-	ExpectedDate     *time.Time                    `json:"expected_date,omitempty"`
-	Items            []models.PurchaseOrderItem    `json:"items" binding:"required,min=1"`
-	ShippingAddress  *models.Address               `json:"shipping_address,omitempty"`
-	Notes            string                        `json:"notes,omitempty"`
-	Terms            string                        `json:"terms,omitempty"`
-	ReferenceNumber  string                        `json:"reference_number,omitempty"`
-	TaxRate          float64                       `json:"tax_rate,omitempty"`
+	SupplierID      primitive.ObjectID         `json:"supplier_id" binding:"required"`
+	OrderDate       time.Time                  `json:"order_date" binding:"required"`
+	ExpectedDate    *time.Time                 `json:"expected_date,omitempty"`
+	Items           []models.PurchaseOrderItem `json:"items" binding:"required,min=1"`
+	ShippingAddress *models.Address            `json:"shipping_address,omitempty"`
+	Notes           string                     `json:"notes,omitempty"`
+	Terms           string                     `json:"terms,omitempty"`
+	ReferenceNumber string                     `json:"reference_number,omitempty"`
+	TaxRate         float64                    `json:"tax_rate,omitempty"`
 }
 
 func (s *ProcurementService) CreatePurchaseOrder(ctx context.Context, orgID primitive.ObjectID, req CreatePurchaseOrderRequest, createdBy primitive.ObjectID) (*models.PurchaseOrder, error) {
@@ -218,12 +228,66 @@ func (s *ProcurementService) CreatePurchaseOrder(ctx context.Context, orgID prim
 	return po, nil
 }
 
-func (s *ProcurementService) GetPurchaseOrder(ctx context.Context, id primitive.ObjectID) (*models.PurchaseOrder, error) {
-	return s.poRepo.FindByID(ctx, id)
+func (s *ProcurementService) GetPurchaseOrder(ctx context.Context, id primitive.ObjectID, token string) (*models.PurchaseOrder, error) {
+	po, err := s.poRepo.FindByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	// Enrich with product names if missing
+	productIDs := []primitive.ObjectID{}
+	for _, item := range po.Items {
+		productIDs = append(productIDs, item.ProductID)
+	}
+
+	if len(productIDs) > 0 {
+		if products, err := s.productClient.GetProductsBatch(ctx, productIDs, token); err == nil {
+			for i := range po.Items {
+				if prod, ok := products[po.Items[i].ProductID.Hex()]; ok {
+					if po.Items[i].Description == "" {
+						po.Items[i].Description = prod.Name
+					}
+					// Also populate ProductName field for explicit requirement
+					po.Items[i].ProductName = prod.Name
+					// And SKU if missing
+					if po.Items[i].SKU == "" {
+						po.Items[i].SKU = prod.SKU
+					}
+				}
+			}
+		}
+	}
+
+	return po, nil
 }
 
 func (s *ProcurementService) ListPurchaseOrders(ctx context.Context, orgID primitive.ObjectID, filters map[string]interface{}, page, limit int) ([]*models.PurchaseOrder, int64, error) {
-	return s.poRepo.FindAll(ctx, orgID, filters, page, limit)
+	orders, total, err := s.poRepo.FindAll(ctx, orgID, filters, page, limit)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// Collect all supplier IDs
+	supplierIDSet := make(map[string]primitive.ObjectID)
+	for _, order := range orders {
+		if !order.SupplierID.IsZero() {
+			supplierIDSet[order.SupplierID.Hex()] = order.SupplierID
+		}
+	}
+
+	// Fetch suppliers and enrich
+	for _, supplierID := range supplierIDSet {
+		supplier, err := s.supplierRepo.FindByID(ctx, supplierID)
+		if err == nil && supplier != nil {
+			for _, order := range orders {
+				if order.SupplierID == supplierID {
+					order.SupplierName = supplier.CompanyName
+				}
+			}
+		}
+	}
+
+	return orders, total, nil
 }
 
 func (s *ProcurementService) ApprovePurchaseOrder(ctx context.Context, id, approvedBy primitive.ObjectID) error {
@@ -242,6 +306,7 @@ func (s *ProcurementService) DeletePurchaseOrder(ctx context.Context, id, delete
 
 type CreateGRNRequest struct {
 	PurchaseOrderID primitive.ObjectID `json:"purchase_order_id" binding:"required"`
+	LocationID      primitive.ObjectID `json:"location_id" binding:"required"`
 	ReceiptDate     time.Time          `json:"receipt_date" binding:"required"`
 	Items           []models.GRNItem   `json:"items" binding:"required,min=1"`
 	Notes           string             `json:"notes,omitempty"`
@@ -274,9 +339,12 @@ func (s *ProcurementService) CreateGRN(ctx context.Context, orgID primitive.Obje
 		OrganizationID:  orgID,
 		GRNNumber:       grnNumber,
 		PurchaseOrderID: req.PurchaseOrderID,
+		PONumber:        po.PONumber,
 		SupplierID:      po.SupplierID,
+		LocationID:      req.LocationID,
 		Status:          models.GRNStatusReceived,
 		ReceiptDate:     req.ReceiptDate,
+		ReceivedBy:      createdBy,
 		Items:           req.Items,
 		Notes:           req.Notes,
 	}
@@ -303,16 +371,179 @@ func (s *ProcurementService) CreateGRN(ctx context.Context, orgID primitive.Obje
 	return grn, nil
 }
 
-func (s *ProcurementService) GetGRN(ctx context.Context, id primitive.ObjectID) (*models.GoodsReceiptNote, error) {
-	return s.grnRepo.FindByID(ctx, id)
+func (s *ProcurementService) GetGRN(ctx context.Context, id primitive.ObjectID, token string) (*models.GoodsReceiptNote, error) {
+	grn, err := s.grnRepo.FindByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	// Enrich Product Details
+	productIDs := []primitive.ObjectID{}
+	for _, item := range grn.Items {
+		productIDs = append(productIDs, item.ProductID)
+	}
+	if len(productIDs) > 0 {
+		if products, err := s.productClient.GetProductsBatch(ctx, productIDs, token); err == nil {
+			for i := range grn.Items {
+				if prod, ok := products[grn.Items[i].ProductID.Hex()]; ok {
+					if grn.Items[i].Description == "" {
+						grn.Items[i].Description = prod.Name
+					}
+					if grn.Items[i].SKU == "" {
+						grn.Items[i].SKU = prod.SKU
+					}
+				}
+			}
+		}
+	}
+
+	// Enrich User Names
+	userIDs := []primitive.ObjectID{grn.ReceivedBy}
+	if grn.InspectedBy != nil {
+		userIDs = append(userIDs, *grn.InspectedBy)
+	}
+
+	users, err := s.userClient.GetUsersBatch(ctx, userIDs, token)
+	if err != nil {
+		fmt.Printf("Warning: Failed to fetch users for GRN %s: %v\n", grn.GRNNumber, err)
+	} else {
+		if user, ok := users[grn.ReceivedBy.Hex()]; ok {
+			name := user.FullName
+			if name == "" {
+				name = user.FirstName + " " + user.LastName
+			}
+			grn.ReceivedByName = name
+		}
+		if grn.InspectedBy != nil {
+			if user, ok := users[grn.InspectedBy.Hex()]; ok {
+				name := user.FullName
+				if name == "" {
+					name = user.FirstName + " " + user.LastName
+				}
+				grn.InspectedByName = name
+			}
+		}
+	}
+
+	return grn, nil
 }
 
-func (s *ProcurementService) ListGRNs(ctx context.Context, orgID primitive.ObjectID, filters map[string]interface{}, page, limit int) ([]*models.GoodsReceiptNote, int64, error) {
-	return s.grnRepo.FindAll(ctx, orgID, filters, page, limit)
+func (s *ProcurementService) ListGRNs(ctx context.Context, orgID primitive.ObjectID, filters map[string]interface{}, page, limit int, token string) ([]*models.GoodsReceiptNote, int64, error) {
+	grns, total, err := s.grnRepo.FindAll(ctx, orgID, filters, page, limit)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// Collect all user IDs
+	userIDSet := make(map[string]primitive.ObjectID)
+	for _, grn := range grns {
+		userIDSet[grn.ReceivedBy.Hex()] = grn.ReceivedBy
+		if grn.InspectedBy != nil {
+			userIDSet[grn.InspectedBy.Hex()] = *grn.InspectedBy
+		}
+	}
+
+	// Convert to slice
+	var userIDs []primitive.ObjectID
+	for _, id := range userIDSet {
+		userIDs = append(userIDs, id)
+	}
+
+	// Fetch users
+	if len(userIDs) > 0 {
+		users, err := s.userClient.GetUsersBatch(ctx, userIDs, token)
+		if err == nil {
+			for _, grn := range grns {
+				if user, ok := users[grn.ReceivedBy.Hex()]; ok {
+					name := user.FullName
+					if name == "" {
+						name = user.FirstName + " " + user.LastName
+					}
+					grn.ReceivedByName = name
+				}
+				if grn.InspectedBy != nil {
+					if user, ok := users[grn.InspectedBy.Hex()]; ok {
+						name := user.FullName
+						if name == "" {
+							name = user.FirstName + " " + user.LastName
+						}
+						grn.InspectedByName = name
+					}
+				}
+			}
+		}
+	}
+
+	// Collect all supplier IDs
+	supplierIDSet := make(map[string]primitive.ObjectID)
+	for _, grn := range grns {
+		if !grn.SupplierID.IsZero() {
+			supplierIDSet[grn.SupplierID.Hex()] = grn.SupplierID
+		}
+	}
+
+	// Fetch suppliers and enrich
+	for _, supplierID := range supplierIDSet {
+		supplier, err := s.supplierRepo.FindByID(ctx, supplierID)
+		if err == nil && supplier != nil {
+			for _, grn := range grns {
+				if grn.SupplierID == supplierID {
+					grn.SupplierName = supplier.CompanyName
+				}
+			}
+		}
+	}
+
+	return grns, total, nil
 }
 
-func (s *ProcurementService) CompleteInspection(ctx context.Context, id, inspectedBy primitive.ObjectID, qcStatus, qcNotes string) error {
-	return s.grnRepo.CompleteInspection(ctx, id, inspectedBy, qcStatus, qcNotes)
+func (s *ProcurementService) CompleteInspection(ctx context.Context, id, inspectedBy primitive.ObjectID, qcStatus, qcNotes, token string) error {
+	// First, fetch the GRN to get location and item details
+	grn, err := s.grnRepo.FindByID(ctx, id)
+	if err != nil {
+		return fmt.Errorf("failed to fetch GRN: %w", err)
+	}
+
+	// Complete inspection in repository
+	if err := s.grnRepo.CompleteInspection(ctx, id, inspectedBy, qcStatus, qcNotes); err != nil {
+		return err
+	}
+
+	// If QC passed, create stock movements
+	if qcStatus == "passed" {
+		var stockRequests []client.StockMovementRequest
+
+		for _, item := range grn.Items {
+			// Use AcceptedQuantity if available, otherwise ReceivedQuantity
+			qty := item.AcceptedQuantity
+			if qty == 0 {
+				qty = item.ReceivedQuantity
+			}
+
+			req := client.StockMovementRequest{
+				ProductID:     item.ProductID.Hex(),
+				MovementType:  "in",
+				ToLocationID:  grn.LocationID.Hex(),
+				Quantity:      qty,
+				UnitCost:      item.UnitCost,
+				ReferenceType: "grn",
+				ReferenceNo:   grn.GRNNumber,
+				BatchNumber:   item.BatchNumber,
+				Notes:         fmt.Sprintf("Stock received from GRN %s", grn.GRNNumber),
+			}
+			stockRequests = append(stockRequests, req)
+		}
+
+		// Create stock movements
+		if len(stockRequests) > 0 {
+			if err := s.inventoryClient.CreateStockMovementsBatch(ctx, grn.OrganizationID, stockRequests, token); err != nil {
+				// Log error but don't fail the inspection
+				fmt.Printf("Warning: Failed to create stock movements for GRN %s: %v\n", grn.GRNNumber, err)
+			}
+		}
+	}
+
+	return nil
 }
 
 // ============== Helper Functions ==============

@@ -283,6 +283,11 @@ type StockMovement struct {
 	ReversedBy   primitive.ObjectID `bson:"reversed_by" json:"reversed_by"`
 	ReversedAt   *time.Time         `bson:"reversed_at" json:"reversed_at"`
 
+	// Enriched Fields
+	ProductName      string `bson:"-" json:"product_name,omitempty"`
+	FromLocationName string `bson:"-" json:"from_location_name,omitempty"`
+	ToLocationName   string `bson:"-" json:"to_location_name,omitempty"`
+
 	Metadata map[string]interface{} `bson:"metadata" json:"metadata"`
 }
 
@@ -412,6 +417,11 @@ type StockAdjustment struct {
 	ApprovedAt     *time.Time         `bson:"approved_at" json:"approved_at"`
 	RejectedReason string             `bson:"rejected_reason" json:"rejected_reason"`
 
+	// Enriched Fields
+	LocationName   string `bson:"-" json:"location_name,omitempty"`
+	CreatedByName  string `bson:"-" json:"created_by_name,omitempty"`
+	ApprovedByName string `bson:"-" json:"approved_by_name,omitempty"`
+
 	Notes    string                 `bson:"notes" json:"notes"`
 	Metadata map[string]interface{} `bson:"metadata" json:"metadata"`
 }
@@ -427,6 +437,10 @@ type StockAdjustmentItem struct {
 	TotalCost     float64             `bson:"total_cost" json:"total_cost"`
 	BatchID       *primitive.ObjectID `bson:"batch_id" json:"batch_id"`
 	Reason        string              `bson:"reason" json:"reason"`
+
+	// Enriched Fields
+	ProductName string `bson:"-" json:"product_name,omitempty"`
+	SKU         string `bson:"-" json:"sku,omitempty"`
 }
 
 // InventoryCount represents physical stock count

@@ -396,13 +396,24 @@ export function GRNDetailsPage() {
                 <div className="font-medium">
                   {grn.received_by_name || grn.received_by}
                 </div>
+                <div className="text-xs text-muted-foreground">
+                  {grn.receipt_date &&
+                    format(new Date(grn.receipt_date), "PPP 'at' p")}
+                </div>
               </div>
               {grn.inspected_by && (
                 <div>
                   <span className="text-sm text-muted-foreground flex items-center gap-1">
                     <ClipboardCheck className="h-3 w-3" /> Inspected By
                   </span>
-                  <div className="font-medium">{grn.inspected_by}</div>
+                  <div className="font-medium">
+                    {grn.inspected_by_name || grn.inspected_by}
+                  </div>
+                  {grn.inspected_date && (
+                    <div className="text-xs text-muted-foreground">
+                      {format(new Date(grn.inspected_date), "PPP 'at' p")}
+                    </div>
+                  )}
                 </div>
               )}
             </CardContent>

@@ -53,6 +53,9 @@ export interface StockMovement {
   notes?: string;
   movement_date: string;
   is_reversed: boolean;
+  product_name?: string;
+  from_location_name?: string;
+  to_location_name?: string;
 }
 
 export enum AdjustmentStatus {
@@ -72,6 +75,10 @@ export interface StockAdjustmentItem {
   total_cost: number;
   batch_id?: string;
   reason?: string;
+
+  // Enriched fields
+  product_name?: string;
+  sku?: string;
 }
 
 export interface StockAdjustment {
@@ -91,6 +98,11 @@ export interface StockAdjustment {
   approved_at?: string;
   rejected_reason?: string;
   notes?: string;
+
+  // Enriched fields
+  location_name?: string;
+  created_by_name?: string;
+  approved_by_name?: string;
 }
 
 export interface CreateStockAdjustmentRequest {

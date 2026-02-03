@@ -186,7 +186,8 @@ func (h *ProcurementHandler) GetPurchaseOrder(c *gin.Context) {
 		return
 	}
 
-	po, err := h.procurementService.GetPurchaseOrder(c.Request.Context(), id)
+	token := c.GetHeader("Authorization")
+	po, err := h.procurementService.GetPurchaseOrder(c.Request.Context(), id, token)
 	if err != nil {
 		utils.ErrorResponse(c, http.StatusNotFound, "PO_NOT_FOUND", err.Error(), nil)
 		return
@@ -338,7 +339,8 @@ func (h *ProcurementHandler) GetGRN(c *gin.Context) {
 		return
 	}
 
-	grn, err := h.procurementService.GetGRN(c.Request.Context(), id)
+	token := c.GetHeader("Authorization")
+	grn, err := h.procurementService.GetGRN(c.Request.Context(), id, token)
 	if err != nil {
 		utils.ErrorResponse(c, http.StatusNotFound, "GRN_NOT_FOUND", err.Error(), nil)
 		return
@@ -371,7 +373,8 @@ func (h *ProcurementHandler) ListGRNs(c *gin.Context) {
 		filters["search"] = search
 	}
 
-	grns, total, err := h.procurementService.ListGRNs(c.Request.Context(), orgID, filters, page, limit)
+	token := c.GetHeader("Authorization")
+	grns, total, err := h.procurementService.ListGRNs(c.Request.Context(), orgID, filters, page, limit, token)
 	if err != nil {
 		utils.ErrorResponse(c, http.StatusInternalServerError, "LIST_GRN_ERROR", err.Error(), nil)
 		return
@@ -404,7 +407,8 @@ func (h *ProcurementHandler) CompleteInspection(c *gin.Context) {
 		return
 	}
 
-	if err := h.procurementService.CompleteInspection(c.Request.Context(), id, userID, req.QCStatus, req.QCNotes); err != nil {
+	token := c.GetHeader("Authorization")
+	if err := h.procurementService.CompleteInspection(c.Request.Context(), id, userID, req.QCStatus, req.QCNotes, token); err != nil {
 		utils.ErrorResponse(c, http.StatusInternalServerError, "INSPECTION_ERROR", err.Error(), nil)
 		return
 	}

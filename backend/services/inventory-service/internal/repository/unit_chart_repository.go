@@ -55,7 +55,9 @@ func (r *UnitChartRepository) FindByUnits(ctx context.Context, fromUnitID, toUni
 }
 
 func (r *UnitChartRepository) Find(ctx context.Context, activeOnly bool) ([]*models.UnitChart, error) {
-	filter := bson.M{}
+	filter := bson.M{
+		"deleted_at": nil,
+	}
 	if activeOnly {
 		filter["is_active"] = true
 	}
