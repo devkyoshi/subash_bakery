@@ -181,6 +181,20 @@ services:
     networks:
       - erp-network
 
+  # Admin Frontend
+  admin-frontend:
+    build:
+      context: ../admin-frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: http://localhost:8080/api/v1
+    container_name: erp-admin-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    networks:
+      - erp-network
+
 volumes:
   mongodb_data:
   redis_data:
