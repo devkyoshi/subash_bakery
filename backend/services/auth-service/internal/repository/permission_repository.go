@@ -68,3 +68,38 @@ func (r *PermissionRepository) FindByIDs(ctx context.Context, ids []primitive.Ob
 	}
 	return permissions, nil
 }
+
+// FindByName finds a permission by name
+func (r *PermissionRepository) FindByName(ctx context.Context, name string) (*models.Permission, error) {
+	var permission models.Permission
+	err := r.collection.FindOne(ctx, bson.M{"name": name}).Decode(&permission)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to find permission by name: %w", err)
+	}
+	return &permission, nil
+}
+
+// BulkCreate creates multiple permissions at once
+func (r *PermissionRepository) BulkCreate(ctx context.Context, permissions []*models.Permission) error {
+	if len(permissions) == 0 {
+		return nil
+	}
+
+	now := time.Now()
+	docs := make([]interface{}, len(permissions))
+	for i, permission := range permissions {
+		permission.ID = primitive.NewObjectID()
+		permission.CreatedAt = now
+		permission.UpdatedAt = now
+		docs[i] = permission
+	}
+
+	_, err := r.collection.InsertMany(ctx, docs)
+	if err != nil {
+		return fmt.Errorf("failed to bulk create permissions: %w", err)
+	}
+	return nil
+}

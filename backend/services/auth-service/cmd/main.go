@@ -18,6 +18,7 @@ import (
 	"github.com/yourusername/erp-system/services/auth-service/config"
 	"github.com/yourusername/erp-system/services/auth-service/internal/handlers"
 	"github.com/yourusername/erp-system/services/auth-service/internal/repository"
+	"github.com/yourusername/erp-system/services/auth-service/internal/seed"
 	"github.com/yourusername/erp-system/services/auth-service/internal/service"
 	"github.com/yourusername/erp-system/shared/database"
 	"github.com/yourusername/erp-system/shared/middleware"
@@ -46,6 +47,18 @@ func main() {
 	if err := createIndexes(mongoDB.Database); err != nil {
 		log.Fatalf("Failed to create indexes: %v", err)
 	}
+
+	// Seed database with system permissions and roles
+	seeder := seed.NewSeeder(
+		repository.NewPermissionRepository(mongoDB.Database),
+		repository.NewRoleRepository(mongoDB.Database),
+	)
+	seedCtx, seedCancel := context.WithTimeout(context.Background(), 30*time.Second)
+	if err := seeder.SeedAll(seedCtx); err != nil {
+		seedCancel()
+		log.Fatalf("Failed to seed database: %v", err)
+	}
+	seedCancel()
 
 	// Initialize JWT manager
 	jwtManager := utils.NewJWTManager(cfg.JWTSecret, cfg.JWTExpiry, cfg.RefreshTokenExpiry)

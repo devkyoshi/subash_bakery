@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/yourusername/erp-system/shared/models"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
-	"github.com/yourusername/erp-system/shared/models"
 )
 
 type RoleRepository struct {
@@ -93,4 +93,17 @@ func (r *RoleRepository) Delete(ctx context.Context, id primitive.ObjectID) erro
 		return fmt.Errorf("failed to delete role: %w", err)
 	}
 	return nil
+}
+
+// FindByName finds a role by name
+func (r *RoleRepository) FindByName(ctx context.Context, name string) (*models.Role, error) {
+	var role models.Role
+	err := r.collection.FindOne(ctx, bson.M{"name": name}).Decode(&role)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to find role by name: %w", err)
+	}
+	return &role, nil
 }
