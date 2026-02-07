@@ -41,9 +41,9 @@ func main() {
 	db := mongoClient.Database(cfg.DBName)
 
 	// Create indexes
-	if err := createIndexes(db); err != nil {
-		log.Fatalf("Failed to create indexes: %v", err)
-	}
+	// if err := createIndexes(db); err != nil {
+	// 	log.Fatalf("Failed to create indexes: %v", err)
+	// }
 
 	// Initialize repositories
 	stockLevelRepo := repository.NewStockLevelRepository(db)
