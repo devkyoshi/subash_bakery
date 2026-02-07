@@ -13,9 +13,13 @@ import { toast } from "@/components/ui/sonner";
 
 interface UserMenuProps {
   variant?: "topbar" | "sidebar";
+  isCollapsed?: boolean;
 }
 
-export function UserMenu({ variant = "topbar" }: UserMenuProps) {
+export function UserMenu({
+  variant = "topbar",
+  isCollapsed = false,
+}: UserMenuProps) {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
 
@@ -47,18 +51,24 @@ export function UserMenu({ variant = "topbar" }: UserMenuProps) {
     return (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <button className="flex w-full items-center gap-3 rounded-2xl bg-muted/40 px-3 py-3 hover:bg-muted/60 transition-colors">
-            <div className="grid h-10 w-10 place-items-center rounded-full bg-brand text-sm font-semibold text-brand-foreground">
+          <button
+            className={`flex w-full items-center gap-3 rounded-2xl bg-muted/40 px-3 py-3 hover:bg-muted/60 transition-colors ${
+              isCollapsed ? "justify-center px-0" : ""
+            }`}
+          >
+            <div className="grid h-10 w-10 place-items-center rounded-full bg-brand text-sm font-semibold text-brand-foreground shrink-0">
               {getUserInitials()}
             </div>
-            <div className="min-w-0 flex-1 text-left">
-              <div className="truncate text-sm font-semibold">
-                {getUserName()}
+            {!isCollapsed && (
+              <div className="min-w-0 flex-1 text-left">
+                <div className="truncate text-sm font-semibold">
+                  {getUserName()}
+                </div>
+                <div className="truncate text-xs text-muted-foreground">
+                  {user?.email || "admin@company.com"}
+                </div>
               </div>
-              <div className="truncate text-xs text-muted-foreground">
-                {user?.email || "admin@company.com"}
-              </div>
-            </div>
+            )}
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent side="top" align="start" className="w-56">
