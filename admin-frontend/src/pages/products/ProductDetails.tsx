@@ -27,6 +27,7 @@ import { productService } from "@/services/product.service";
 import { Product } from "@/types/product.types";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
+import { formatCurrency } from "@/lib/utils";
 
 export function ProductDetailsPage() {
   const { id } = useParams();
@@ -51,14 +52,6 @@ export function ProductDetailsPage() {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const formatCurrency = (amount: number, currency: string = "USD") => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: currency,
-      minimumFractionDigits: 0,
-    }).format(amount);
   };
 
   if (isLoading) {
@@ -227,10 +220,10 @@ export function ProductDetailsPage() {
                         {lp.selling_unit?.symbol || "units"}
                       </TableCell>
                       <TableCell className="text-right font-mono text-muted-foreground">
-                        {formatCurrency(lp.cost_price, lp.currency)}
+                        {formatCurrency(lp.cost_price)}
                       </TableCell>
                       <TableCell className="text-right font-mono font-medium">
-                        {formatCurrency(lp.selling_price, lp.currency)}
+                        {formatCurrency(lp.selling_price)}
                       </TableCell>
                     </TableRow>
                   ))}

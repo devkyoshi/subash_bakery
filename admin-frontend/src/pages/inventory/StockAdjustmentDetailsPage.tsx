@@ -27,6 +27,7 @@ import { ArrowLeft, CheckCircle2, XCircle, CalendarDays } from "lucide-react";
 import { format } from "date-fns";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/components/ui/use-toast";
+import { formatCurrency } from "@/lib/utils";
 
 export function StockAdjustmentDetailsPage() {
   const { id } = useParams<{ id: string }>();
@@ -267,7 +268,7 @@ export function StockAdjustmentDetailsPage() {
                         </span>
                       </TableCell>
                       <TableCell className="text-right">
-                        ${item.total_cost?.toFixed(2) || "0.00"}
+                        {formatCurrency(item.total_cost || 0)}
                       </TableCell>
                     </TableRow>
                   ))}

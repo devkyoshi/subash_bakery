@@ -28,7 +28,7 @@ const companySchema = z.object({
   code: z.string().min(2, "Code is required"), // Now required
   email: z.string().email("Invalid email address"),
   tax_id: z.string().optional(),
-  currency: z.string().default("USD"),
+  currency: z.string().default("LKR"),
   phone: z.string().optional(),
   website: z.string().optional(),
   address: z.object({
@@ -60,7 +60,7 @@ export function CompanyFormDialog({
   const form = useForm<CompanyValues>({
     resolver: zodResolver(companySchema),
     defaultValues: {
-      currency: "USD",
+      currency: "LKR",
       name: "",
       legal_name: "",
       email: "",
@@ -88,7 +88,7 @@ export function CompanyFormDialog({
         tax_id: initialData.tax_id || "",
         phone: initialData.phone || "",
         website: initialData.website || "",
-        currency: initialData.currency || "USD",
+        currency: initialData.currency || "LKR",
         address: {
           street: initialData.address?.street || "",
           city: initialData.address?.city || "",
@@ -106,7 +106,7 @@ export function CompanyFormDialog({
         tax_id: "",
         phone: "",
         website: "",
-        currency: "USD",
+        currency: "LKR",
         address: {
           street: "",
           city: "",
@@ -269,7 +269,7 @@ export function CompanyFormDialog({
                   <FormItem>
                     <FormLabel>Currency</FormLabel>
                     <FormControl>
-                      <Input placeholder="USD" {...field} />
+                      <Input placeholder="LKR" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

@@ -28,6 +28,7 @@ import {
   TrendingUp,
   AlertTriangle,
 } from "lucide-react";
+import { formatCurrency } from "@/lib/utils";
 
 export function InventoryPage() {
   const navigate = useNavigate();
@@ -188,7 +189,7 @@ export function InventoryPage() {
                           {stock.quantity_in_transit.toFixed(2)}
                         </TableCell>
                         <TableCell className="text-right">
-                          ${stock.total_value.toFixed(2)}
+                          {formatCurrency(stock.total_value)}
                         </TableCell>
                         <TableCell>
                           <Badge variant={status.variant} className="gap-1">

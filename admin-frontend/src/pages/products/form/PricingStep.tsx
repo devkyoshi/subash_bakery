@@ -103,7 +103,7 @@ export function PricingStep() {
       mrp: data.selling_price * 1.2, // Auto-calc MRP if not provided, or add field
       initial_stock: data.initial_stock,
       is_active: true,
-      currency: "USD",
+      currency: "LKR",
     });
     setIsLocationDialogOpen(false);
   };

@@ -49,7 +49,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { cn } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
 
 // Schema for form validation
 const createPOSchema = z.object({
@@ -445,7 +445,7 @@ export function CreatePurchaseOrderPage() {
                   <div className="flex justify-between py-2 border-t">
                     <span className="font-bold">Total Amount</span>
                     <span className="font-bold text-lg">
-                      ${subtotal.toFixed(2)}
+                      {formatCurrency(subtotal)}
                     </span>
                   </div>
                 </div>

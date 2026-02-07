@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { procurementService } from "@/services/procurement.service";
 import { Supplier } from "@/types/procurement.types";
+import { formatCurrency } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -205,7 +206,7 @@ export function SupplierDetailsPage() {
                   <CreditCard className="h-4 w-4" /> Currency
                 </span>
                 <span className="font-medium">
-                  {supplier.currency || "USD"}
+                  {supplier.currency || "LKR"}
                 </span>
               </div>
               <div className="flex justify-between items-center">
@@ -220,10 +221,7 @@ export function SupplierDetailsPage() {
                 <span className="text-sm text-muted-foreground flex items-center justify-between">
                   <span>Credit Limit</span>
                   <span className="font-medium">
-                    {new Intl.NumberFormat("en-US", {
-                      style: "currency",
-                      currency: supplier.currency || "USD",
-                    }).format(supplier.credit_limit || 0)}
+                    {formatCurrency(supplier.credit_limit || 0)}
                   </span>
                 </span>
               </div>

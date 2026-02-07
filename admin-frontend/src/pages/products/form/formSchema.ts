@@ -39,7 +39,7 @@ export const productSchema = z.object({
 
         mrp: z.coerce.number().min(0).default(0),
         initial_stock: z.coerce.number().min(0).default(0),
-        currency: z.string().default("USD"),
+        currency: z.string().default("LKR"),
         is_active: z.boolean().default(true),
         // Units for this location price might be needed if they differ
       }),

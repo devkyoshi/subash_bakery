@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { formatCurrency } from "@/lib/utils";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { procurementService } from "@/services/procurement.service";
@@ -175,10 +176,7 @@ export function PurchaseOrdersPage() {
                       </TableCell>
                       <TableCell>{order.items.length} items</TableCell>
                       <TableCell className="text-right font-medium">
-                        {new Intl.NumberFormat("en-US", {
-                          style: "currency",
-                          currency: order.currency || "USD",
-                        }).format(order.total_amount)}
+                        {formatCurrency(order.total_amount)}
                       </TableCell>
                       <TableCell>
                         <DropdownMenu>

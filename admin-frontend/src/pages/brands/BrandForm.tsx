@@ -242,7 +242,7 @@ export function BrandFormPage() {
                     <FormItem>
                       <FormLabel>Country/Location (Optional)</FormLabel>
                       <FormControl>
-                        <Input placeholder="e.g. USA" {...field} />
+                        <Input placeholder="e.g. Sri Lanka" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

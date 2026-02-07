@@ -26,9 +26,16 @@ export function SalesHistoryCard({ data }: { data: SalesPoint[] }) {
 
       <div className="mt-4 h-[280px] w-full">
         <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart data={data} margin={{ left: 10, right: 10, top: 10, bottom: 0 }}>
+          <ComposedChart
+            data={data}
+            margin={{ left: 10, right: 10, top: 10, bottom: 0 }}
+          >
             <XAxis dataKey="month" tick={{ fontSize: 11 }} interval={2} />
-            <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => formatK(v as number)} width={50} />
+            <YAxis
+              tick={{ fontSize: 11 }}
+              tickFormatter={(v) => formatK(v as number)}
+              width={50}
+            />
             <Tooltip
               contentStyle={{
                 borderRadius: 12,
@@ -37,12 +44,25 @@ export function SalesHistoryCard({ data }: { data: SalesPoint[] }) {
               }}
               labelStyle={{ fontWeight: 600 }}
               formatter={(value: unknown, name: string) => {
-                if (name === "cashedPct") return [`${Number(value).toFixed(2)}%`, "Total cashed in (%)"];
-                if (name === "cashed") return [Number(value).toLocaleString(), "Total cashed in (€)"];
+                if (name === "cashedPct")
+                  return [
+                    `${Number(value).toFixed(2)}%`,
+                    "Total cashed in (%)",
+                  ];
+                if (name === "cashed")
+                  return [
+                    Number(value).toLocaleString(),
+                    "Total cashed in (Rs.)",
+                  ];
                 return [Number(value).toLocaleString(), "Total invoiced"];
               }}
             />
-            <Bar dataKey="invoiced" fill="hsl(var(--info))" radius={[6, 6, 0, 0]} barSize={14} />
+            <Bar
+              dataKey="invoiced"
+              fill="hsl(var(--info))"
+              radius={[6, 6, 0, 0]}
+              barSize={14}
+            />
             <Bar
               dataKey="cashed"
               fill="hsl(var(--success))"
@@ -50,7 +70,13 @@ export function SalesHistoryCard({ data }: { data: SalesPoint[] }) {
               barSize={14}
               opacity={0.9}
             />
-            <Line type="monotone" dataKey="cashedPct" stroke="hsl(var(--success))" strokeWidth={2} dot={false} />
+            <Line
+              type="monotone"
+              dataKey="cashedPct"
+              stroke="hsl(var(--success))"
+              strokeWidth={2}
+              dot={false}
+            />
           </ComposedChart>
         </ResponsiveContainer>
       </div>

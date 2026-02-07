@@ -33,6 +33,7 @@ import { format } from "date-fns";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/components/ui/use-toast";
+import { formatCurrency } from "@/lib/utils";
 
 export function PurchaseOrderDetailsPage() {
   const { id } = useParams<{ id: string }>();
@@ -284,16 +285,10 @@ export function PurchaseOrderDetailsPage() {
                         {item.quantity}
                       </TableCell>
                       <TableCell className="text-right">
-                        {new Intl.NumberFormat("en-US", {
-                          style: "currency",
-                          currency: order.currency || "USD",
-                        }).format(item.unit_price)}
+                        {formatCurrency(item.unit_price)}
                       </TableCell>
                       <TableCell className="text-right">
-                        {new Intl.NumberFormat("en-US", {
-                          style: "currency",
-                          currency: order.currency || "USD",
-                        }).format(
+                        {formatCurrency(
                           item.line_total || item.quantity * item.unit_price,
                         )}
                       </TableCell>
@@ -304,10 +299,7 @@ export function PurchaseOrderDetailsPage() {
                       Subtotal
                     </TableCell>
                     <TableCell className="text-right font-medium">
-                      {new Intl.NumberFormat("en-US", {
-                        style: "currency",
-                        currency: order.currency || "USD",
-                      }).format(order.total_amount)}
+                      {formatCurrency(order.total_amount)}
                     </TableCell>
                   </TableRow>
                 </TableBody>
@@ -399,12 +391,7 @@ export function PurchaseOrderDetailsPage() {
               <Separator className="my-2" />
               <div className="flex justify-between font-medium">
                 <span>Total</span>
-                <span>
-                  {new Intl.NumberFormat("en-US", {
-                    style: "currency",
-                    currency: order.currency || "USD",
-                  }).format(order.total_amount)}
-                </span>
+                <span>{formatCurrency(order.total_amount)}</span>
               </div>
             </CardContent>
           </Card>
