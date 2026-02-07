@@ -70,7 +70,7 @@ class OrganizationService {
    */
   async getCompanies(
     orgId: string,
-    params?: { page?: number; limit?: number },
+    params?: { page?: number; limit?: number; q?: string; is_active?: boolean },
   ): Promise<ApiResponse<PaginatedData<Company>>> {
     const response = await axiosInstance.get<
       ApiResponse<PaginatedData<Company>>

@@ -38,7 +38,7 @@ func main() {
 	}
 
 	log.Println("Connected to MongoDB successfully")
-	db := mongoClient.Database("erp_inventory")
+	db := mongoClient.Database(cfg.DBName)
 
 	// Create indexes
 	if err := createIndexes(db); err != nil {

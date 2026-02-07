@@ -122,12 +122,14 @@ type UnitConversionResponse struct {
 }
 
 type UnitResponse struct {
-	ID          primitive.ObjectID     `json:"id"`
-	Name        string                 `json:"name"`
-	Code        string                 `json:"code"`
-	UnitType    string                 `json:"unit_type"`
-	IsBaseUnit  bool                   `json:"is_base_unit"`
-	Conversion  UnitConversionResponse `json:"conversion"`
+	ID         primitive.ObjectID     `json:"id"`
+	ChartID    primitive.ObjectID     `json:"chart_id"`
+	Name       string                 `json:"name"`
+	Code       string                 `json:"code"`
+	UnitType   string                 `json:"unit_type"`
+	IsBaseUnit bool                   `json:"is_base_unit"`
+	IsActive   bool                   `json:"is_active"`
+	Conversion UnitConversionResponse `json:"conversion"`
 }
 
 func (s *UnitChartService) GetUnitCharts(
@@ -153,7 +155,7 @@ func (s *UnitChartService) GetUnitCharts(
 		unitMap[u.ID] = u
 	}
 
-	var response []UnitResponse
+	response := make([]UnitResponse, 0)
 
 	// Iterate over charts to build the response
 	// This naturally filters out units with no conversions, as we drive off the charts list
@@ -179,10 +181,12 @@ func (s *UnitChartService) GetUnitCharts(
 
 		response = append(response, UnitResponse{
 			ID:         fromUnit.ID,
+			ChartID:    chart.BaseModel.ID, // Map the Chart ID
 			Name:       fromUnit.Name,
 			Code:       fromUnit.Code,
 			UnitType:   fromUnit.UnitType,
 			IsBaseUnit: fromUnit.IsBaseUnit,
+			IsActive:   chart.IsActive,
 			Conversion: conv,
 		})
 	}
@@ -234,7 +238,7 @@ func (s *UnitChartService) DeleteUnitChart(
 	if err != nil {
 		return fmt.Errorf("unit chart not found: %w", err)
 	}
-	
+
 	if err := s.unitChartRepo.SoftDelete(ctx, chart.ID); err != nil {
 		return fmt.Errorf("failed to delete unit chart: %w", err)
 	}

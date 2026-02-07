@@ -17,6 +17,18 @@ export const productSchema = z.object({
   track_inventory: z.boolean().default(true),
   track_batches: z.boolean().default(false),
   track_serial_numbers: z.boolean().default(false),
+  reorder_level: z.coerce.number().min(0).default(0),
+
+  // Dimensions & Weight
+  weight: z.coerce.number().min(0).default(0),
+  weight_unit: z.string().default("kg"),
+  length: z.coerce.number().min(0).default(0),
+  width: z.coerce.number().min(0).default(0),
+  height: z.coerce.number().min(0).default(0),
+  dimension_unit: z.string().default("cm"),
+  volume: z.coerce.number().min(0).default(0),
+  volume_unit: z.string().default("m3"),
+  tags: z.array(z.string()).optional(),
 
   // Media
   images: z.array(z.string()).optional(),

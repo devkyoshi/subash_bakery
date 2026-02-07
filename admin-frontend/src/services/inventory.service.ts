@@ -8,7 +8,7 @@ import type {
   Batch,
   InventoryCount,
 } from "@/types/inventory.types";
-import { PaginatedResponse } from "@/types/global.types";
+import { PaginatedResponse, PaginatedData } from "@/types/global.types";
 
 class InventoryService {
   // ============== Stock Levels ==============
@@ -18,6 +18,8 @@ class InventoryService {
     location_id?: string;
     organization_id?: string;
     search?: string;
+    page?: number;
+    limit?: number;
   }) {
     const params = new URLSearchParams();
     if (filters?.organization_id)
@@ -25,6 +27,8 @@ class InventoryService {
     if (filters?.product_id) params.append("product_id", filters.product_id);
     if (filters?.location_id) params.append("location_id", filters.location_id);
     if (filters?.search) params.append("search", filters.search);
+    if (filters?.page) params.append("page", filters.page.toString());
+    if (filters?.limit) params.append("limit", filters.limit.toString());
 
     return axiosInstance.get<PaginatedResponse<StockLevel>>(
       `/inventory/stock-levels?${params}`,
@@ -86,7 +90,7 @@ class InventoryService {
     if (filters?.page) params.append("page", filters.page.toString());
     if (filters?.limit) params.append("limit", filters.limit.toString());
 
-    return axiosInstance.get<{ data: StockAdjustment[] }>(
+    return axiosInstance.get<PaginatedResponse<StockAdjustment>>(
       `/inventory/organizations/${orgId}/stock-adjustments?${params}`,
     );
   }
@@ -145,7 +149,7 @@ class InventoryService {
     if (filters?.page) params.append("page", filters.page.toString());
     if (filters?.limit) params.append("limit", filters.limit.toString());
 
-    return axiosInstance.get<{ data: StockMovement[] }>(
+    return axiosInstance.get<PaginatedResponse<StockMovement>>(
       `/inventory/organizations/${orgId}/stock-movements?${params}`,
     );
   }

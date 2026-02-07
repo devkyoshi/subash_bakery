@@ -22,12 +22,21 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Plus,
   Search,
   MoreHorizontal,
   FileText,
   Phone,
   Mail,
+  Filter,
+  X,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -54,6 +63,7 @@ export function SuppliersPage() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [supplierToDelete, setSupplierToDelete] = useState<Supplier | null>(
     null,
@@ -61,7 +71,7 @@ export function SuppliersPage() {
 
   useEffect(() => {
     fetchSuppliers();
-  }, [user?.organization_id]);
+  }, [user?.organization_id, statusFilter]);
 
   const fetchSuppliers = async () => {
     if (!user?.organization_id) return;
@@ -71,6 +81,10 @@ export function SuppliersPage() {
         user.organization_id,
         {
           search,
+          status:
+            statusFilter !== "all"
+              ? (statusFilter as SupplierStatus)
+              : undefined,
         },
       );
       setSuppliers(response.data.data || []);
@@ -131,125 +145,154 @@ export function SuppliersPage() {
         </Button>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>All Suppliers</CardTitle>
-          <CardDescription>
-            A list of all suppliers currently in the system.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-4 mb-6">
-            <div className="relative flex-1 max-w-sm">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search suppliers..."
-                className="pl-8"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && fetchSuppliers()}
-              />
+      {/* Toolbar */}
+      <div className="rounded-lg border border-border bg-elevated p-6 shadow-none">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="flex items-center gap-2">
+              <div className="relative w-full sm:w-64">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Search suppliers..."
+                  className="h-10 pl-10"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && fetchSuppliers()}
+                />
+              </div>
+              <Button variant="secondary" onClick={fetchSuppliers}>
+                Search
+              </Button>
             </div>
-            <Button variant="outline" onClick={fetchSuppliers}>
-              Search
-            </Button>
-          </div>
 
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Company</TableHead>
-                  <TableHead>Code</TableHead>
-                  <TableHead>Contact Person</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Open Orders</TableHead>
-                  <TableHead className="w-[50px]"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {loading ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="h-24 text-center">
-                      Loading suppliers...
-                    </TableCell>
-                  </TableRow>
-                ) : suppliers.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="h-24 text-center">
-                      No suppliers found. Add one to get started.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  suppliers.map((supplier) => (
-                    <TableRow key={supplier.id}>
-                      <TableCell>
-                        <div className="font-medium">
-                          {supplier.company_name}
-                        </div>
-                        <div className="text-xs text-muted-foreground flex gap-2 mt-1">
-                          {supplier.email && (
-                            <span className="flex items-center gap-0.5">
-                              <Mail className="h-3 w-3" /> {supplier.email}
-                            </span>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>{supplier.supplier_code}</TableCell>
-                      <TableCell>
-                        <div>{supplier.contact_person}</div>
-                        {supplier.phone && (
-                          <div className="text-xs text-muted-foreground flex items-center gap-0.5">
-                            <Phone className="h-3 w-3" /> {supplier.phone}
-                          </div>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={getStatusBadgeVariant(supplier.status)}>
-                          {supplier?.status?.toUpperCase()}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {supplier.total_orders || 0}
-                      </TableCell>
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className="h-8 w-8 p-0">
-                              <span className="sr-only">Open menu</span>
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                            <DropdownMenuItem
-                              onClick={() => navigate(`${supplier.id}`)}
-                            >
-                              View Details
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => navigate(`${supplier.id}/edit`)}
-                            >
-                              Edit
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              className="text-destructive"
-                              onClick={() => confirmDelete(supplier)}
-                            >
-                              Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+            <div className="flex items-center gap-2">
+              <Select
+                value={statusFilter}
+                onValueChange={(val) => {
+                  setStatusFilter(val);
+                }}
+              >
+                <SelectTrigger className="h-10 w-[140px]">
+                  <Filter className="mr-2 h-4 w-4" />
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
+                  <SelectItem value="blacklist">Blacklist</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {(search || statusFilter !== "all") && (
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    setSearch("");
+                    setStatusFilter("all");
+                  }}
+                >
+                  <X className="mr-2 h-4 w-4" />
+                  Clear
+                </Button>
+              )}
+            </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
+
+      {/* Suppliers Table */}
+      <div className="rounded-lg border border-border bg-elevated shadow-none overflow-hidden">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Company</TableHead>
+              <TableHead>Code</TableHead>
+              <TableHead>Contact Person</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="text-right">Open Orders</TableHead>
+              <TableHead className="w-[50px]"></TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {loading ? (
+              <TableRow>
+                <TableCell colSpan={7} className="h-24 text-center">
+                  Loading suppliers...
+                </TableCell>
+              </TableRow>
+            ) : suppliers.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={7} className="h-24 text-center">
+                  No suppliers found. Add one to get started.
+                </TableCell>
+              </TableRow>
+            ) : (
+              suppliers.map((supplier) => (
+                <TableRow key={supplier.id}>
+                  <TableCell>
+                    <div className="font-medium">{supplier.company_name}</div>
+                    <div className="text-xs text-muted-foreground flex gap-2 mt-1">
+                      {supplier.email && (
+                        <span className="flex items-center gap-0.5">
+                          <Mail className="h-3 w-3" /> {supplier.email}
+                        </span>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell>{supplier.supplier_code}</TableCell>
+                  <TableCell>
+                    <div>{supplier.contact_person}</div>
+                    {supplier.phone && (
+                      <div className="text-xs text-muted-foreground flex items-center gap-0.5">
+                        <Phone className="h-3 w-3" /> {supplier.phone}
+                      </div>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={getStatusBadgeVariant(supplier.status)}>
+                      {supplier?.status?.toUpperCase()}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {supplier.total_orders || 0}
+                  </TableCell>
+                  <TableCell>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" className="h-8 w-8 p-0">
+                          <span className="sr-only">Open menu</span>
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                        <DropdownMenuItem
+                          onClick={() => navigate(`${supplier.id}`)}
+                        >
+                          View Details
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => navigate(`${supplier.id}/edit`)}
+                        >
+                          Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          className="text-destructive"
+                          onClick={() => confirmDelete(supplier)}
+                        >
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>

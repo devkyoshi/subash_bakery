@@ -8,6 +8,7 @@ import (
 type Config struct {
 	Port              string
 	MongoURI          string
+	DBName            string
 	RedisAddr         string
 	RabbitMQURL       string
 	JWTSecret         string
@@ -23,6 +24,7 @@ func LoadConfig() *Config {
 	return &Config{
 		Port:              getEnv("PORT", "8006"),
 		MongoURI:          getEnv("MONGO_URI", "mongodb://admin:admin123@localhost:27017"),
+		DBName:            getEnv("DB_NAME", "erp_db"),
 		RedisAddr:         getEnv("REDIS_ADDR", "localhost:6379"),
 		RabbitMQURL:       getEnv("RABBITMQ_URL", "amqp://admin:admin123@localhost:5672/"),
 		JWTSecret:         getEnv("JWT_SECRET", "your-super-secret-jwt-key-change-in-production"),

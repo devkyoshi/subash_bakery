@@ -68,7 +68,7 @@ func (r *UnitChartRepository) Find(ctx context.Context, activeOnly bool) ([]*mod
 	}
 	defer cursor.Close(ctx)
 
-	var charts []*models.UnitChart
+	charts := make([]*models.UnitChart, 0)
 	if err = cursor.All(ctx, &charts); err != nil {
 		return nil, err
 	}

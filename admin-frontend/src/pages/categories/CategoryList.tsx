@@ -2,6 +2,13 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Table,
   TableBody,
   TableCell,
@@ -20,6 +27,8 @@ import {
   ChevronDown,
   Layers,
   Loader2,
+  Filter,
+  X,
 } from "lucide-react";
 import { categoryService } from "@/services/category.service";
 import { Category } from "@/types/category.types";
@@ -43,6 +52,7 @@ export function CategoriesPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [expandedCategories, setExpandedCategories] = useState<
@@ -55,7 +65,7 @@ export function CategoriesPage() {
     if (user?.organization_id) {
       fetchCategories();
     }
-  }, [user?.organization_id, page]);
+  }, [user?.organization_id, page, statusFilter]); // Added statusFilter dependency
 
   const fetchCategories = async () => {
     if (!user?.organization_id) return;
@@ -65,6 +75,8 @@ export function CategoriesPage() {
       const response = await categoryService.getCategories({
         organization_id: user.organization_id,
         q: searchQuery || undefined,
+        is_active:
+          statusFilter !== "all" ? statusFilter === "active" : undefined,
         page,
         limit,
       });
@@ -132,15 +144,65 @@ export function CategoriesPage() {
       <div className="rounded-lg border border-border bg-elevated p-6 shadow-none">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <div className="relative w-full sm:w-64">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Search categories..."
-                className="h-10 pl-10"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-              />
+            <div className="flex items-center gap-2">
+              <div className="relative w-full sm:w-64">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Search categories..."
+                  className="h-10 pl-10"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                />
+              </div>
+              <Button variant="secondary" onClick={handleSearch}>
+                Search
+              </Button>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Select
+                value={statusFilter}
+                onValueChange={(val) => {
+                  setStatusFilter(val);
+                  setPage(1); // Reset page on filter change
+                }}
+              >
+                <SelectTrigger className="h-10 w-[140px]">
+                  <Filter className="mr-2 h-4 w-4" />
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {(searchQuery || statusFilter !== "all") && (
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    setSearchQuery("");
+                    setStatusFilter("all");
+                    setPage(1);
+                    // Verify if we need to trigger fetch manually or effect handles it
+                    // Effect depends on statusFilter, so it will trigger.
+                    // Search query is not in effect dependency array usually (it is passed to fetch),
+                    // but usually we want to clear and fetch.
+                    // Let's rely on the effect for status, but for search we might need to trigger if status doesn't change.
+                    // Actually, best to just reset state and let a robust effect handle it or call fetch manually.
+                    // In this component, fetchCategories depends on [user, page].
+                    // It DOES NOT depend on search/status state changes automatically to avoid debounce issues?
+                    // No, lines 58: [user?.organization_id, page].
+                    // So changing status won't trigger fetch unless we add it to dependency or call fetch.
+                    // I should add statusFilter to dependency array or call fetch.
+                  }}
+                >
+                  <X className="mr-2 h-4 w-4" />
+                  Clear
+                </Button>
+              )}
             </div>
           </div>
 

@@ -17,6 +17,13 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Building2,
   Plus,
   RefreshCw,
@@ -25,22 +32,20 @@ import {
   MapPin,
   Warehouse,
   Pencil,
+  Search,
+  Filter,
+  X,
 } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import {
   organizationService,
   CreateCompanyRequest,
   Company,
 } from "@/services/organization.service";
-import {
-  locationService,
-  CreateLocationRequest,
-} from "@/services/location.service";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { CompanyFormDialog } from "./CompanyFormDialog";
-import { LocationFormDialog } from "../locations/LocationFormDialog";
 import { useNavigate } from "react-router-dom";
-import { Location } from "@/types/product.types";
 
 export default function CompanyList() {
   const { user } = useAuth();
@@ -48,13 +53,17 @@ export default function CompanyList() {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Search state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+
   // Dialog states
   const [isCompanyDialogOpen, setIsCompanyDialogOpen] = useState(false);
   const [editingCompany, setEditingCompany] = useState<Company | null>(null);
 
   useEffect(() => {
     fetchData();
-  }, [user?.organization_id]);
+  }, [user?.organization_id, statusFilter]); // trigger on status change
 
   const fetchData = async () => {
     if (!user?.organization_id) return;
@@ -63,7 +72,12 @@ export default function CompanyList() {
     try {
       const response = await organizationService.getCompanies(
         user.organization_id,
-        { limit: 100 },
+        {
+          limit: 100,
+          q: searchQuery || undefined,
+          is_active:
+            statusFilter !== "all" ? statusFilter === "active" : undefined,
+        },
       );
       // Access nested data.data array safely
       setCompanies(response.data?.data || []);
@@ -73,6 +87,10 @@ export default function CompanyList() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleSearch = () => {
+    fetchData();
   };
 
   const handleCreateOrUpdateCompany = async (data: CreateCompanyRequest) => {
@@ -115,14 +133,71 @@ export default function CompanyList() {
             Manage your companies and settings.
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" onClick={fetchData}>
-            <RefreshCw className="h-4 w-4" />
-          </Button>
-          <Button onClick={openAddCompany}>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Company
-          </Button>
+      </div>
+
+      {/* Toolbar */}
+      <div className="rounded-lg border border-border bg-elevated p-6 shadow-none">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="flex items-center gap-2">
+              <div className="relative w-full sm:w-64">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Search companies..."
+                  className="h-10 pl-10"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                />
+              </div>
+              <Button variant="secondary" onClick={handleSearch}>
+                Search
+              </Button>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Select
+                value={statusFilter}
+                onValueChange={(val) => {
+                  setStatusFilter(val);
+                }}
+              >
+                <SelectTrigger className="h-10 w-[140px]">
+                  <Filter className="mr-2 h-4 w-4" />
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {(searchQuery || statusFilter !== "all") && (
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    setSearchQuery("");
+                    setStatusFilter("all");
+                    // fetch triggered by effect on status change or handled manually if we want immediate clear
+                  }}
+                >
+                  <X className="mr-2 h-4 w-4" />
+                  Clear
+                </Button>
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="icon" onClick={() => fetchData()}>
+              <RefreshCw className="h-4 w-4" />
+            </Button>
+            <Button onClick={openAddCompany}>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Company
+            </Button>
+          </div>
         </div>
       </div>
 

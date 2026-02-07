@@ -28,6 +28,7 @@ import {
   Package,
   AlertTriangle,
   Eye,
+  X,
 } from "lucide-react";
 import { productService } from "@/services/product.service";
 import { Product, ProductStatus, ProductType } from "@/types/product.types";
@@ -175,21 +176,32 @@ export function ProductsPage() {
           {/* Left Side - Search and Filters */}
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             {/* Search Bar */}
-            <div className="relative w-full sm:w-64">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Search products..."
-                className="h-10 pl-10"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-              />
+            <div className="flex items-center gap-2">
+              <div className="relative w-full sm:w-64">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Search products..."
+                  className="h-10 pl-10"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                />
+              </div>
+              <Button variant="secondary" onClick={handleSearch}>
+                Search
+              </Button>
             </div>
 
             {/* Filter Dropdowns */}
             <div className="flex gap-2">
               {/* Status Filter */}
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <Select
+                value={statusFilter}
+                onValueChange={(val) => {
+                  setStatusFilter(val);
+                  setPage(1);
+                }}
+              >
                 <SelectTrigger className="h-10 w-[140px]">
                   <Filter className="mr-2 h-4 w-4" />
                   <SelectValue placeholder="Status" />
@@ -203,7 +215,13 @@ export function ProductsPage() {
               </Select>
 
               {/* Type Filter */}
-              <Select value={typeFilter} onValueChange={setTypeFilter}>
+              <Select
+                value={typeFilter}
+                onValueChange={(val) => {
+                  setTypeFilter(val);
+                  setPage(1);
+                }}
+              >
                 <SelectTrigger className="h-10 w-[160px]">
                   <Package className="mr-2 h-4 w-4" />
                   <SelectValue placeholder="Type" />
@@ -217,6 +235,24 @@ export function ProductsPage() {
                   <SelectItem value="service">Service</SelectItem>
                 </SelectContent>
               </Select>
+
+              {(searchQuery ||
+                statusFilter !== "all" ||
+                typeFilter !== "all") && (
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    setSearchQuery("");
+                    setStatusFilter("all");
+                    setTypeFilter("all");
+                    setPage(1);
+                    // trigger fetch effectively via effect or next render
+                  }}
+                >
+                  <X className="mr-2 h-4 w-4" />
+                  Clear
+                </Button>
+              )}
             </div>
           </div>
 

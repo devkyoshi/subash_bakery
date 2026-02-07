@@ -1,6 +1,7 @@
 import axiosInstance from "@/lib/axios";
 import {
   Supplier,
+  SupplierStatus,
   CreateSupplierRequest,
   PurchaseOrder,
   CreatePurchaseOrderRequest,
@@ -36,7 +37,7 @@ class ProcurementService {
       page?: number;
       limit?: number;
       search?: string;
-      status?: string;
+      status?: SupplierStatus;
     },
   ): Promise<PaginatedResponse<Supplier>> {
     const response = await axiosInstance.get<PaginatedResponse<Supplier>>(
