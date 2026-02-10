@@ -101,9 +101,14 @@ export function StockAdjustmentsPage() {
           limit,
         },
       );
-      setAdjustments(response.data.data.data || []);
-      // @ts-ignore - types might be mismatching but runtime is flat
-      setTotal(response.data.data.pagination?.total || 0);
+      const responseData: any = response.data;
+      if (Array.isArray(responseData.data)) {
+        setAdjustments(responseData.data);
+        setTotal(responseData.data.length);
+      } else {
+        setAdjustments(responseData.data?.data || []);
+        setTotal(responseData.data?.pagination?.total || 0);
+      }
     } catch (error) {
       console.error("Failed to fetch adjustments", error);
     } finally {

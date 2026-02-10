@@ -195,11 +195,14 @@ services:
       MONGO_URI: mongodb://admin:admin123@mongodb:27017
       DB_NAME: erp_db
       RABBITMQ_URL: amqp://admin:admin123@rabbitmq:5672/
+      JWT_SECRET: your-super-secret-jwt-key-change-in-production
     ports:
       - "8007:8007"
     depends_on:
       - mongodb
       - rabbitmq
+    volumes:
+      - ./firebase-credentials.json:/app/firebase-credentials.json
     networks:
       - erp-network
 

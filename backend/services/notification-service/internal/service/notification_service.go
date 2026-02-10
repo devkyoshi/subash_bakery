@@ -21,7 +21,8 @@ type NotificationService struct {
 func NewNotificationService(cfg *config.Config, deviceRepo *repository.DeviceRepository) (*NotificationService, error) {
 	// Initialize Firebase
 	opt := option.WithCredentialsFile(cfg.FirebaseCredentialsPath)
-	app, err := firebase.NewApp(context.Background(), nil, opt)
+	conf := &firebase.Config{ProjectID: cfg.FirebaseProjectID}
+	app, err := firebase.NewApp(context.Background(), conf, opt)
 	if err != nil {
 		return nil, fmt.Errorf("error initializing app: %v", err)
 	}

@@ -253,9 +253,9 @@ export function CategoriesPage() {
                 </TableCell>
               </TableRow>
             ) : (
-              categories.map((category) => (
+              categories.map((category, index) => (
                 <>
-                  <TableRow key={category.id} className="group">
+                  <TableRow key={index} className="group">
                     <TableCell>
                       <div className="flex items-center gap-2">
                         {category.subcategories?.length > 0 ? (

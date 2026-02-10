@@ -30,6 +30,20 @@ func (h *EventHandler) Start(ctx context.Context) error {
 		return fmt.Errorf("failed to declare queue: %w", err)
 	}
 
+	// Declare exchange
+	err = h.rabbitClient.Channel.ExchangeDeclare(
+		"notification_events", // name
+		"topic",               // type
+		true,                  // durable
+		false,                 // auto-deleted
+		false,                 // internal
+		false,                 // no-wait
+		nil,                   // arguments
+	)
+	if err != nil {
+		return fmt.Errorf("failed to declare exchange: %w", err)
+	}
+
 	// Bind queue to exchange
 	err = h.rabbitClient.Channel.QueueBind(
 		q.Name,                // queue name

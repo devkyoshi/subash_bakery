@@ -11,7 +11,9 @@ import (
 	"github.com/yourusername/erp-system/services/notification-service/internal/handler"
 	"github.com/yourusername/erp-system/services/notification-service/internal/repository"
 	"github.com/yourusername/erp-system/services/notification-service/internal/service"
+	"github.com/yourusername/erp-system/shared/middleware"
 	"github.com/yourusername/erp-system/shared/rabbitmq"
+	"github.com/yourusername/erp-system/shared/utils"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -56,7 +58,7 @@ func main() {
 	}
 
 	// Initialize Handlers
-	deviceHandler := handler.NewDeviceHandler(deviceRepo)
+	deviceHandler := handler.NewDeviceHandler(deviceRepo, notifService)
 	eventHandler := handler.NewEventHandler(rabbitClient, notifService)
 
 	// Start RabbitMQ Consumer
@@ -66,10 +68,14 @@ func main() {
 		}
 	}()
 
+	// Initialize JWT Manager
+	jwtManager := utils.NewJWTManager(cfg.JWTSecret, 15*time.Minute, 168*time.Hour)
+
 	// Setup Gin Router
 	router := gin.Default()
 
 	api := router.Group("/api/v1")
+	api.Use(middleware.AuthMiddleware(jwtManager))
 	deviceHandler.RegisterRoutes(api)
 
 	// Health Check

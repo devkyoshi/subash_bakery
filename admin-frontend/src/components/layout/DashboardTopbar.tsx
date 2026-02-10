@@ -5,6 +5,12 @@ import { Input } from "@/components/ui/input";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { UserMenu } from "@/components/common/UserMenu";
+import { useEffect, useState } from "react";
+import {
+  requestForToken,
+  onMessageListener,
+} from "@/services/notification.service";
+import { toast } from "sonner";
 
 const TITLE_BY_PREFIX: Array<{ prefix: string; title: string }> = [
   { prefix: "/app/dashboard", title: "Dashboard" },
@@ -26,6 +32,29 @@ interface DashboardTopbarProps {
 export function DashboardTopbar({ onMenuClick }: DashboardTopbarProps) {
   const location = useLocation();
   const { user } = useAuth();
+  const [hasUnread, setHasUnread] = useState(false);
+
+  useEffect(() => {
+    // Request permission and token on mount
+    requestForToken();
+
+    // Listen for foreground messages
+    const unsubscribe = onMessageListener((payload: any) => {
+      console.log("Received foreground message:", payload);
+      setHasUnread(true);
+      toast(payload.notification?.title || "New Notification", {
+        description: payload.notification?.body,
+        action: {
+          label: "View",
+          onClick: () => console.log("Notification clicked"),
+        },
+      });
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, []);
 
   const title =
     TITLE_BY_PREFIX.find((t) => location.pathname.startsWith(t.prefix))
@@ -70,11 +99,12 @@ export function DashboardTopbar({ onMenuClick }: DashboardTopbarProps) {
           <Button
             variant="ghost"
             size="icon"
-            aria-label="Notifications"
-            className="relative"
+            onClick={() => setHasUnread(false)}
           >
             <Bell className="h-4 w-4" />
-            <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-destructive" />
+            {hasUnread && (
+              <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-destructive" />
+            )}
           </Button>
 
           {/* User Menu */}

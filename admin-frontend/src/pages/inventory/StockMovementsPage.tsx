@@ -88,9 +88,14 @@ export function StockMovementsPage() {
           limit,
         },
       );
-      setMovements(response.data.data.data || []);
-      // @ts-ignore - types might be mismatching but runtime is flat
-      setTotal(response.data.data.pagination?.total || 0);
+      const responseData: any = response.data;
+      if (Array.isArray(responseData.data)) {
+        setMovements(responseData.data);
+        setTotal(responseData.data.length);
+      } else {
+        setMovements(responseData.data?.data || []);
+        setTotal(responseData.data?.pagination?.total || 0);
+      }
     } catch (error) {
       console.error("Failed to fetch movements", error);
     } finally {
