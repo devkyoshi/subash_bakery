@@ -380,7 +380,47 @@ func (h *ProcurementHandler) ListGRNs(c *gin.Context) {
 		return
 	}
 
-	utils.PaginatedResponse(c, grns, page, limit, total)
+	// Format response
+	var response []map[string]interface{}
+	for _, grn := range grns {
+		item := map[string]interface{}{
+			"id":                grn.ID,
+			"grn_number":        grn.GRNNumber,
+			"status":            grn.Status,
+			"purchase_order_id": grn.PurchaseOrderID,
+			"po_number":         grn.PONumber,
+			"supplier": map[string]interface{}{
+				"id":   grn.SupplierID,
+				"name": grn.SupplierName,
+			},
+			"location_id":  grn.LocationID,
+			"receipt_date": grn.ReceiptDate,
+			"received_by": map[string]interface{}{
+				"id":   grn.ReceivedBy,
+				"name": grn.ReceivedByName,
+			},
+			"qc_status":      grn.QCStatus,
+			"invoice_number": grn.InvoiceNumber,
+			"delivery_note":  grn.DeliveryNote,
+			"total_value":    grn.TotalValue,
+			"product_names":  grn.ProductNames,
+			"po_unit":        grn.POUnitName,
+			"ordered_unit":   grn.OrderedUnitName,
+			"received_unit":  grn.ReceivedUnitName,
+		}
+
+		if grn.InspectedBy != nil {
+			item["inspected_by"] = map[string]interface{}{
+				"id":   *grn.InspectedBy,
+				"name": grn.InspectedByName,
+			}
+			item["inspected_date"] = grn.InspectedDate
+		}
+
+		response = append(response, item)
+	}
+
+	utils.PaginatedResponse(c, response, page, limit, total)
 }
 
 func (h *ProcurementHandler) CompleteInspection(c *gin.Context) {

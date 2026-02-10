@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/yourusername/erp-system/services/procurement-service/config"
+	"github.com/yourusername/erp-system/shared/models"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -82,4 +83,57 @@ func (c *InventoryClient) CreateStockMovementsBatch(ctx context.Context, orgID p
 		}
 	}
 	return nil
+}
+
+// GetUnitsBatch fetches details for a list of unit IDs
+func (c *InventoryClient) GetUnitsBatch(ctx context.Context, unitIDs []string, token string) (map[string]*models.Unit, error) {
+	if len(unitIDs) == 0 {
+		return make(map[string]*models.Unit), nil
+	}
+
+	idsParam := ""
+	for i, id := range unitIDs {
+		if i > 0 {
+			idsParam += ","
+		}
+		idsParam += id
+	}
+
+	url := fmt.Sprintf("%s/api/v1/inventory/units?ids=%s", c.baseURL, idsParam)
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if token != "" {
+		req.Header.Set("Authorization", token)
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to fetch units: status %d", resp.StatusCode)
+	}
+
+	var response struct {
+		Success bool           `json:"success"`
+		Data    []*models.Unit `json:"data"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+		return nil, err
+	}
+
+	results := make(map[string]*models.Unit)
+	if response.Success {
+		for _, unit := range response.Data {
+			results[unit.ID.Hex()] = unit
+		}
+	}
+
+	return results, nil
 }

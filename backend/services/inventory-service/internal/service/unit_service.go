@@ -80,10 +80,13 @@ func (s *UnitService) GetUnit(ctx context.Context, id primitive.ObjectID) (*mode
 	return unit, nil
 }
 
-func (s *UnitService) GetUnits(ctx context.Context, unitType *string, activeOnly bool) ([]*models.Unit, error) {
+func (s *UnitService) GetUnits(ctx context.Context, unitType *string, activeOnly bool, ids []primitive.ObjectID) ([]*models.Unit, error) {
 	filters := make(map[string]interface{})
 	if unitType != nil {
 		filters["unit_type"] = *unitType
+	}
+	if len(ids) > 0 {
+		filters["ids"] = ids
 	}
 
 	units, err := s.unitRepo.Find(ctx, filters, activeOnly)

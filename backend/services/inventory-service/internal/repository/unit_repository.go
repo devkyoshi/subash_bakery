@@ -49,6 +49,9 @@ func (r *UnitRepository) Find(ctx context.Context, filters map[string]interface{
 	if activeOnly {
 		bsonFilters["is_active"] = true
 	}
+	if ids, ok := filters["ids"].([]primitive.ObjectID); ok && len(ids) > 0 {
+		bsonFilters["_id"] = bson.M{"$in": ids}
+	}
 
 	cursor, err := r.collection.Find(ctx, bsonFilters)
 	if err != nil {

@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/yourusername/erp-system/services/inventory-service/internal/service"
@@ -109,13 +110,24 @@ func (h *UnitHandler) GetUnit(c *gin.Context) {
 func (h *UnitHandler) GetUnits(c *gin.Context) {
 	unitType := c.Query("unit_type")
 	activeOnly := c.Query("active_only") == "true"
+	idsStr := c.Query("ids")
 
 	var unitTypePtr *string
 	if unitType != "" {
 		unitTypePtr = &unitType
 	}
 
-	units, err := h.unitService.GetUnits(c.Request.Context(), unitTypePtr, activeOnly)
+	var ids []primitive.ObjectID
+	if idsStr != "" {
+		idList := strings.Split(idsStr, ",")
+		for _, id := range idList {
+			if oid, err := primitive.ObjectIDFromHex(strings.TrimSpace(id)); err == nil {
+				ids = append(ids, oid)
+			}
+		}
+	}
+
+	units, err := h.unitService.GetUnits(c.Request.Context(), unitTypePtr, activeOnly, ids)
 	if err != nil {
 		utils.ErrorResponse(c, http.StatusInternalServerError, "FETCH_FAILED", err.Error(), nil)
 		return

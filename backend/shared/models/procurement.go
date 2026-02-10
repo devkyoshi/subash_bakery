@@ -180,6 +180,13 @@ type GoodsReceiptNote struct {
 	InspectedByName string `bson:"-" json:"inspected_by_name,omitempty"`
 	SupplierName    string `bson:"-" json:"supplier_name,omitempty"`
 	LocationName    string `bson:"-" json:"location_name,omitempty"`
+
+	// Calculated/Enriched for List View
+	TotalValue       float64  `bson:"-" json:"total_value,omitempty"`
+	ProductNames     []string `bson:"-" json:"product_names,omitempty"`
+	POUnitName       string   `bson:"-" json:"po_unit_name,omitempty"`       // Assuming single unit for simplicity or comma separated
+	OrderedUnitName  string   `bson:"-" json:"ordered_unit_name,omitempty"`  // Assuming single unit for simplicity or comma separated
+	ReceivedUnitName string   `bson:"-" json:"received_unit_name,omitempty"` // Assuming single unit for simplicity or comma separated
 }
 
 type GRNItem struct {

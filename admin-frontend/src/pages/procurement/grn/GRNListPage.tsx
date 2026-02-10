@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { procurementService } from "@/services/procurement.service";
-import { GoodsReceiptNote, GRNStatus } from "@/types/procurement.types";
+import { GoodsReceiptNoteSummary, GRNStatus } from "@/types/procurement.types";
 import {
   Table,
   TableBody,
@@ -50,7 +50,7 @@ import { format } from "date-fns";
 export function GRNListPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [grns, setGrns] = useState<GoodsReceiptNote[]>([]);
+  const [grns, setGrns] = useState<GoodsReceiptNoteSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -186,6 +186,8 @@ export function GRNListPage() {
               <TableHead>PO Number</TableHead>
               <TableHead>Supplier</TableHead>
               <TableHead>Received By</TableHead>
+              <TableHead>Product(s)</TableHead>
+              <TableHead>Total Value</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>QC</TableHead>
               <TableHead className="w-[50px]"></TableHead>
@@ -194,13 +196,13 @@ export function GRNListPage() {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={7} className="h-24 text-center">
+                <TableCell colSpan={9} className="h-24 text-center">
                   Loading GRNs...
                 </TableCell>
               </TableRow>
             ) : grns.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="h-24 text-center">
+                <TableCell colSpan={9} className="h-24 text-center">
                   No GRNs found. Receive goods from a Purchase Order to create
                   one.
                 </TableCell>
@@ -215,16 +217,37 @@ export function GRNListPage() {
                     </div>
                   </TableCell>
                   <TableCell>{grn.po_number || "-"}</TableCell>
-                  <TableCell>{grn.supplier_name || "-"}</TableCell>
+                  <TableCell>{grn.supplier?.name || "-"}</TableCell>
                   <TableCell>
                     <div>
-                      <div className="font-medium">
-                        {grn.received_by_name || grn.received_by}
-                      </div>
+                      <div className="font-medium">{grn.received_by?.name}</div>
                       <div className="text-xs text-muted-foreground">
                         {format(new Date(grn.receipt_date), "MMM dd, yyyy")}
                       </div>
                     </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-col">
+                      <span
+                        className="font-medium truncate max-w-[200px]"
+                        title={grn.product_names?.join(", ")}
+                      >
+                        {grn.product_names?.length > 0
+                          ? grn.product_names[0]
+                          : "-"}
+                        {grn.product_names?.length > 1 &&
+                          ` +${grn.product_names.length - 1} more`}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {grn.po_unit ? `${grn.po_unit}` : ""}
+                      </span>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    {new Intl.NumberFormat("en-US", {
+                      style: "currency",
+                      currency: "LKR", 
+                    }).format(grn.total_value || 0)}
                   </TableCell>
                   <TableCell>
                     <Badge variant={getStatusBadgeVariant(grn.status)}>

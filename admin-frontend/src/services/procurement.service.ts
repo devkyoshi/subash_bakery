@@ -7,6 +7,7 @@ import {
   CreatePurchaseOrderRequest,
   POStatus,
   GoodsReceiptNote,
+  GoodsReceiptNoteSummary,
   CreateGRNRequest,
 } from "@/types/procurement.types";
 import { ApiResponse, PaginatedResponse } from "@/types/global.types";
@@ -178,9 +179,9 @@ class ProcurementService {
       status?: string;
       purchase_order_id?: string;
     },
-  ): Promise<PaginatedResponse<GoodsReceiptNote>> {
+  ): Promise<PaginatedResponse<GoodsReceiptNoteSummary>> {
     const response = await axiosInstance.get<
-      PaginatedResponse<GoodsReceiptNote>
+      PaginatedResponse<GoodsReceiptNoteSummary>
     >(`/organizations/${orgId}/grns`, { params });
     return response.data;
   }

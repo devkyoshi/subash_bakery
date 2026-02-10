@@ -434,47 +434,78 @@ func (s *ProcurementService) ListGRNs(ctx context.Context, orgID primitive.Objec
 		return nil, 0, err
 	}
 
-	// Collect all user IDs
+	// Collect all user IDs and product IDs
 	userIDSet := make(map[string]primitive.ObjectID)
+	productIDSet := make(map[string]primitive.ObjectID)
+
 	for _, grn := range grns {
 		userIDSet[grn.ReceivedBy.Hex()] = grn.ReceivedBy
 		if grn.InspectedBy != nil {
 			userIDSet[grn.InspectedBy.Hex()] = *grn.InspectedBy
 		}
-	}
-
-	// Convert to slice
-	var userIDs []primitive.ObjectID
-	for _, id := range userIDSet {
-		userIDs = append(userIDs, id)
+		for _, item := range grn.Items {
+			productIDSet[item.ProductID.Hex()] = item.ProductID
+		}
 	}
 
 	// Fetch users
-	if len(userIDs) > 0 {
-		users, err := s.userClient.GetUsersBatch(ctx, userIDs, token)
-		if err == nil {
-			for _, grn := range grns {
-				if user, ok := users[grn.ReceivedBy.Hex()]; ok {
-					name := user.FullName
-					if name == "" {
-						name = user.FirstName + " " + user.LastName
-					}
-					grn.ReceivedByName = name
-				}
-				if grn.InspectedBy != nil {
-					if user, ok := users[grn.InspectedBy.Hex()]; ok {
-						name := user.FullName
-						if name == "" {
-							name = user.FirstName + " " + user.LastName
-						}
-						grn.InspectedByName = name
-					}
+	var users map[string]*models.User
+	if len(userIDSet) > 0 {
+		var userIDs []primitive.ObjectID
+		for _, id := range userIDSet {
+			userIDs = append(userIDs, id)
+		}
+		var err error
+		users, err = s.userClient.GetUsersBatch(ctx, userIDs, token)
+		if err != nil {
+			fmt.Printf("Warning: Failed to fetch users for GRN list: %v\n", err)
+		}
+	}
+
+	// Fetch products and collect unit IDs
+	var products map[string]*models.Product
+	unitIDSet := make(map[string]string)
+
+	if len(productIDSet) > 0 {
+		var productIDs []primitive.ObjectID
+		for _, id := range productIDSet {
+			productIDs = append(productIDs, id)
+		}
+		var err error
+		products, err = s.productClient.GetProductsBatch(ctx, productIDs, token)
+		if err != nil {
+			fmt.Printf("Warning: Failed to fetch products for GRN list: %v\n", err)
+		} else {
+			for _, prod := range products {
+				if !prod.BaseUnitID.IsZero() {
+					unitIDSet[prod.BaseUnitID.Hex()] = prod.BaseUnitID.Hex()
+				} else {
+					fmt.Printf("Debug: Product %s has zero BaseUnitID\n", prod.ID.Hex())
 				}
 			}
 		}
 	}
 
-	// Collect all supplier IDs
+	// Fetch units
+	var units map[string]*models.Unit
+	if len(unitIDSet) > 0 {
+		var unitIDs []string
+		for id := range unitIDSet {
+			unitIDs = append(unitIDs, id)
+		}
+		fmt.Printf("Debug: Fetching units with IDs: %v\n", unitIDs)
+		var err error
+		units, err = s.inventoryClient.GetUnitsBatch(ctx, unitIDs, token)
+		if err != nil {
+			fmt.Printf("Warning: Failed to fetch units for GRN list: %v\n", err)
+		} else {
+			fmt.Printf("Debug: Fetched %d units\n", len(units))
+		}
+	} else {
+		fmt.Printf("Debug: No unit IDs collected from products\n")
+	}
+
+	// Collect supplier IDs
 	supplierIDSet := make(map[string]primitive.ObjectID)
 	for _, grn := range grns {
 		if !grn.SupplierID.IsZero() {
@@ -482,16 +513,78 @@ func (s *ProcurementService) ListGRNs(ctx context.Context, orgID primitive.Objec
 		}
 	}
 
-	// Fetch suppliers and enrich
-	for _, supplierID := range supplierIDSet {
-		supplier, err := s.supplierRepo.FindByID(ctx, supplierID)
-		if err == nil && supplier != nil {
-			for _, grn := range grns {
-				if grn.SupplierID == supplierID {
-					grn.SupplierName = supplier.CompanyName
+	// Fetch suppliers
+	var suppliers map[string]*models.Supplier
+	if len(supplierIDSet) > 0 {
+		suppliers = make(map[string]*models.Supplier)
+		for _, supplierID := range supplierIDSet {
+			supplier, err := s.supplierRepo.FindByID(ctx, supplierID)
+			if err == nil && supplier != nil {
+				suppliers[supplierID.Hex()] = supplier
+			}
+		}
+	}
+
+	// Enrich GRNs
+	for _, grn := range grns {
+		// Enrich Users
+		if users != nil {
+			if user, ok := users[grn.ReceivedBy.Hex()]; ok {
+				grn.ReceivedByName = user.FullName
+				if grn.ReceivedByName == "" {
+					grn.ReceivedByName = user.FirstName + " " + user.LastName
+				}
+			}
+			if grn.InspectedBy != nil {
+				if user, ok := users[grn.InspectedBy.Hex()]; ok {
+					grn.InspectedByName = user.FullName
+					if grn.InspectedByName == "" {
+						grn.InspectedByName = user.FirstName + " " + user.LastName
+					}
 				}
 			}
 		}
+
+		// Enrich Supplier
+		if suppliers != nil {
+			if supplier, ok := suppliers[grn.SupplierID.Hex()]; ok {
+				grn.SupplierName = supplier.CompanyName
+			}
+		}
+
+		// Enrich Products, Units, and Calculate Total
+		var totalValue float64
+		var productNames []string
+		// Use a set for unit names if they are uniform, or just take the first one found
+		var unitName string
+
+		for _, item := range grn.Items {
+			// Total Value
+			itemTotal := item.ReceivedQuantity * item.UnitCost
+			totalValue += itemTotal
+
+			// Product Name & Unit
+			if products != nil {
+				if prod, ok := products[item.ProductID.Hex()]; ok {
+					productNames = append(productNames, prod.Name)
+
+					// Unit
+					if unitName == "" && units != nil && !prod.BaseUnitID.IsZero() {
+						if unit, ok := units[prod.BaseUnitID.Hex()]; ok {
+							unitName = unit.Name // Or unit.Code
+						} else {
+							fmt.Printf("Debug: Unit not found for ID %s\n", prod.BaseUnitID.Hex())
+						}
+					}
+				}
+			}
+		}
+
+		grn.TotalValue = totalValue
+		grn.ProductNames = productNames
+		grn.POUnitName = unitName
+		grn.OrderedUnitName = unitName
+		grn.ReceivedUnitName = unitName
 	}
 
 	return grns, total, nil

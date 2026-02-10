@@ -178,6 +178,28 @@ export interface GoodsReceiptNote {
   location_name?: string;
 }
 
+export interface GoodsReceiptNoteSummary {
+  id: string;
+  grn_number: string;
+  status: GRNStatus;
+  purchase_order_id: string;
+  po_number?: string;
+  supplier: { id: string; name: string };
+  location_id: string;
+  receipt_date: string;
+  received_by: { id: string; name: string };
+  inspected_by?: { id: string; name: string };
+  inspected_date?: string;
+  qc_status?: string;
+  invoice_number?: string;
+  delivery_note?: string;
+  total_value: number;
+  product_names: string[];
+  po_unit?: string;
+  ordered_unit?: string;
+  received_unit?: string;
+}
+
 export interface CreateGRNRequest {
   purchase_order_id: string;
   location_id: string;
