@@ -48,7 +48,8 @@ func main() {
 		// Procurement Service Routes
 		if strings.HasPrefix(path, "/suppliers") ||
 			strings.HasPrefix(path, "/purchase-orders") ||
-			strings.HasPrefix(path, "/grns") {
+			strings.HasPrefix(path, "/grns") ||
+			strings.HasPrefix(path, "/procurement") {
 			targetURL = cfg.ProcurementServiceURL
 		} else if strings.HasPrefix(path, "/organizations") {
 			// Check for procurement sub-resources under organizations
@@ -71,6 +72,7 @@ func main() {
 		} else if strings.HasPrefix(path, "/companies") || strings.HasPrefix(path, "/locations") || strings.HasPrefix(path, "/users") {
 			targetURL = cfg.OrgServiceURL
 		} else if strings.Contains(path, "/stock") ||
+			strings.HasPrefix(path, "/inventory") ||
 			strings.HasPrefix(path, "/stock-levels") ||
 			strings.HasPrefix(path, "/stock-movements") ||
 			strings.HasPrefix(path, "/batches") ||

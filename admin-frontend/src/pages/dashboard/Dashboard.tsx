@@ -1,13 +1,53 @@
-import { getDashboardData } from "@/services/dashboard.service";
+import { useEffect, useState } from "react";
+import {
+  getDashboardData,
+  type DashboardData,
+} from "@/services/dashboard.service";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { ReportsCard } from "@/components/dashboard/ReportsCard";
 import { OrderCard } from "@/components/dashboard/OrderCard";
 import { SalesHistoryCard } from "@/components/dashboard/SalesHistoryCard";
 import { ActivityCard } from "@/components/dashboard/ActivityCard";
 import { CalendarCard } from "@/components/dashboard/CalendarCard";
+import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export function DashboardPage() {
-  const data = getDashboardData();
+  const [data, setData] = useState<DashboardData | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const dashboardData = await getDashboardData();
+        setData(dashboardData);
+      } catch (error) {
+        console.error("Failed to load dashboard data", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadData();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 lg:gap-6">
+          {[1, 2, 3, 4].map((i) => (
+            <Card key={i}>
+              <CardContent className="p-6">
+                <Skeleton className="h-4 w-[100px] mb-4" />
+                <Skeleton className="h-8 w-[60px]" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (!data) return <div>Failed to load data</div>;
 
   return (
     <div className="space-y-6">
@@ -21,7 +61,8 @@ export function DashboardPage() {
       {/* Reports & Orders - Responsive: 1 col mobile, 2 cols tablet+ */}
       <section className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-6">
         <ReportsCard items={data.reports} />
-        <OrderCard items={data.orders} />
+        {/* Reuse OrderCard for Pending Approvals for now */}
+        <OrderCard items={data.orders} title="Pending Approvals" />
       </section>
 
       {/* Sales History - Full width */}

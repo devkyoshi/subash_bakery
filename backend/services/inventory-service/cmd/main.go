@@ -16,7 +16,9 @@ import (
 	"github.com/yourusername/erp-system/services/inventory-service/internal/handlers"
 	"github.com/yourusername/erp-system/services/inventory-service/internal/repository"
 	"github.com/yourusername/erp-system/services/inventory-service/internal/service"
+	"github.com/yourusername/erp-system/services/inventory-service/internal/worker"
 	"github.com/yourusername/erp-system/shared/middleware"
+	"github.com/yourusername/erp-system/shared/rabbitmq"
 	"github.com/yourusername/erp-system/shared/utils"
 )
 
@@ -45,6 +47,14 @@ func main() {
 	// 	log.Fatalf("Failed to create indexes: %v", err)
 	// }
 
+	// Initialize RabbitMQ
+	rabbitClient, err := rabbitmq.NewRabbitMQClient(cfg.RabbitMQURL)
+	if err != nil {
+		log.Fatalf("Failed to connect to RabbitMQ: %v", err)
+	}
+	defer rabbitClient.Close()
+	log.Println("Connected to RabbitMQ successfully")
+
 	// Initialize repositories
 	stockLevelRepo := repository.NewStockLevelRepository(db)
 	stockMovementRepo := repository.NewStockMovementRepository(db)
@@ -56,7 +66,7 @@ func main() {
 	unitChartRepo := repository.NewUnitChartRepository(db)
 
 	// Initialize services
-	stockLevelService := service.NewStockLevelService(stockLevelRepo)
+	stockLevelService := service.NewStockLevelService(stockLevelRepo, rabbitClient)
 	stockService := service.NewStockService(stockLevelRepo, stockMovementRepo, batchRepo)
 	batchService := service.NewBatchService(batchRepo, stockLevelRepo)
 	adjustmentService := service.NewStockAdjustmentService(adjustmentRepo, stockLevelRepo, stockMovementRepo)
@@ -96,9 +106,6 @@ func main() {
 	router := gin.Default()
 	router.Use(middleware.CORSMiddleware())
 
-	// TODO: Implement rate limiting
-	// router.Use(middleware.RateLimitMiddleware())
-
 	// Health check
 	router.GET("/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{
@@ -113,6 +120,11 @@ func main() {
 	inventoryHandler.RegisterRoutes(api, jwtManager)
 	unitHandler.RegisterRoutes(api, jwtManager)
 	unitChartHandler.RegisterRoutes(api, jwtManager)
+
+	// Start Expiry Checker Worker
+	expiryChecker := worker.NewExpiryChecker(batchRepo, rabbitClient, 7) // 7 days warning
+	go expiryChecker.Start(context.Background())
+	log.Println("Expiry Checker Worker started")
 
 	// Start server
 	port := fmt.Sprintf("0.0.0.0:%s", cfg.Port)

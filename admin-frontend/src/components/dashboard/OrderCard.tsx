@@ -26,13 +26,21 @@ function flagClass(flag: OrderItem["flag"]) {
   }
 }
 
-export function OrderCard({ items }: { items: OrderItem[] }) {
+export function OrderCard({
+  items,
+  title = "Order Fulfillment",
+}: {
+  items: OrderItem[];
+  title?: string;
+}) {
   return (
     <Card className="rounded-[18px] bg-elevated p-6 shadow-none">
       <div className="flex items-start justify-between">
         <div>
-          <div className="text-sm font-semibold">Order Fulfillment</div>
-          <div className="mt-1 text-xs text-muted-foreground">Manage pending orders</div>
+          <div className="text-sm font-semibold">{title}</div>
+          <div className="mt-1 text-xs text-muted-foreground">
+            Manage pending items
+          </div>
         </div>
         <Button className="h-10 rounded-xl bg-brand px-4 text-brand-foreground hover:bg-brand/90">
           <Plus className="mr-2 h-4 w-4" />
@@ -41,28 +49,43 @@ export function OrderCard({ items }: { items: OrderItem[] }) {
       </div>
 
       <div className="mt-5 space-y-3">
-        {items.map((o) => (
-          <div key={o.id} className="rounded-2xl border border-border bg-background px-4 py-3">
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex items-start gap-2">
-                <Flag className={cn("mt-0.5 h-4 w-4", flagClass(o.flag))} />
-                <div>
-                  <div className="text-xs font-semibold">{o.id}</div>
-                  <div className="text-xs text-muted-foreground">{o.customer}</div>
+        {items.length === 0 ? (
+          <div className="py-8 text-center text-sm text-muted-foreground">
+            No pending items
+          </div>
+        ) : (
+          items.map((o) => (
+            <div
+              key={o.id}
+              className="rounded-2xl border border-border bg-background px-4 py-3"
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-start gap-2">
+                  <Flag className={cn("mt-0.5 h-4 w-4", flagClass(o.flag))} />
+                  <div>
+                    <div className="text-xs font-semibold">{o.id}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {o.customer}
+                    </div>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-xs font-semibold">{o.amount}</div>
+                  <div
+                    className={cn("text-xs font-medium", statusClass(o.status))}
+                  >
+                    {o.status}
+                  </div>
                 </div>
               </div>
-              <div className="text-right">
-                <div className="text-xs font-semibold">{o.amount}</div>
-                <div className={cn("text-xs font-medium", statusClass(o.status))}>{o.status}</div>
-              </div>
             </div>
-          </div>
-        ))}
+          ))
+        )}
       </div>
 
       <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground">
-        <span>Showing 4 of 12 orders</span>
-        <button className="text-brand hover:underline">View all orders →</button>
+        <span>Showing {items.length} items</span>
+        <button className="text-brand hover:underline">View all →</button>
       </div>
     </Card>
   );

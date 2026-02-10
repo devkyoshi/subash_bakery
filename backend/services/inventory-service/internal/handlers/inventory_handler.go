@@ -48,6 +48,7 @@ func (h *InventoryHandler) RegisterRoutes(api *gin.RouterGroup, jwtManager *util
 		utils.SuccessResponse(c, http.StatusOK, map[string]string{"status": "healthy"}, "Inventory Service is running")
 	})
 	api.POST("/inventory/stock/bulk", h.stockLevelHandler.GetStockLevelsBatch)
+	api.GET("/inventory/dashboard/stats", h.stockLevelHandler.GetDashboardStats)
 
 	// Protected routes
 	protected := api.Group("/inventory")

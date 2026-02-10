@@ -243,3 +243,23 @@ func (r *GRNRepository) CompleteInspection(ctx context.Context, id, inspectedBy 
 
 	return nil
 }
+
+// GetPendingCount retrieves count of pending GRNs
+func (r *GRNRepository) GetPendingCount(ctx context.Context, orgID primitive.ObjectID) (int64, error) {
+	// Pending GRNs (Draft, Received, Inspected) - Not Accepted or Rejected
+	count, err := r.collection.CountDocuments(ctx, bson.M{
+		"organization_id": orgID,
+		"deleted_at":      nil,
+		"status": bson.M{
+			"$in": []models.GRNStatus{
+				models.GRNStatusDraft,
+				models.GRNStatusReceived,
+				models.GRNStatusInspected,
+			},
+		},
+	})
+	if err != nil {
+		return 0, fmt.Errorf("failed to count pending GRNs: %w", err)
+	}
+	return count, nil
+}

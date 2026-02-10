@@ -244,3 +244,49 @@ func (r *PurchaseOrderRepository) Approve(ctx context.Context, id, approvedBy pr
 
 	return nil
 }
+
+// GetDashboardStats retrieves dashboard statistics
+func (r *PurchaseOrderRepository) GetDashboardStats(ctx context.Context, orgID primitive.ObjectID) (int64, []*models.PurchaseOrder, error) {
+	// Pending PO Count (Sent, Confirmed, Partial) = Active Orders
+	pendingCount, err := r.collection.CountDocuments(ctx, bson.M{
+		"organization_id": orgID,
+		"deleted_at":      nil,
+		"status": bson.M{
+			"$in": []models.POStatus{
+				models.POStatusSent,
+				models.POStatusConfirmed,
+				models.POStatusPartiallyReceived,
+			},
+		},
+	})
+	if err != nil {
+		return 0, nil, fmt.Errorf("failed to count pending POs: %w", err)
+	}
+
+	// Pending Approvals (Draft status) - Limit to top 5
+	opts := options.Find().
+		SetSort(bson.D{{Key: "created_at", Value: -1}}).
+		SetLimit(5)
+
+	cursor, err := r.collection.Find(ctx, bson.M{
+		"organization_id": orgID,
+		"deleted_at":      nil,
+		"status":          models.POStatusDraft,
+	}, opts)
+	if err != nil {
+		return 0, nil, fmt.Errorf("failed to find pending approvals: %w", err)
+	}
+	defer cursor.Close(ctx)
+
+	var pendingApprovals []*models.PurchaseOrder
+	if err = cursor.All(ctx, &pendingApprovals); err != nil {
+		return 0, nil, fmt.Errorf("failed to decode pending approvals: %w", err)
+	}
+
+	// Initialize slice
+	if pendingApprovals == nil {
+		pendingApprovals = make([]*models.PurchaseOrder, 0)
+	}
+
+	return pendingCount, pendingApprovals, nil
+}

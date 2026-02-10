@@ -3,20 +3,24 @@ package service
 import (
 	"context"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/yourusername/erp-system/services/inventory-service/internal/repository"
 	"github.com/yourusername/erp-system/shared/models"
+	"github.com/yourusername/erp-system/shared/rabbitmq"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type StockLevelService struct {
-	stockRepo *repository.StockLevelRepository
+	stockRepo    *repository.StockLevelRepository
+	rabbitClient *rabbitmq.RabbitMQClient
 }
 
-func NewStockLevelService(stockRepo *repository.StockLevelRepository) *StockLevelService {
+func NewStockLevelService(stockRepo *repository.StockLevelRepository, rabbitClient *rabbitmq.RabbitMQClient) *StockLevelService {
 	return &StockLevelService{
-		stockRepo: stockRepo,
+		stockRepo:    stockRepo,
+		rabbitClient: rabbitClient,
 	}
 }
 
@@ -70,6 +74,14 @@ func (s *StockLevelService) AdjustQuantity(ctx context.Context, orgID, productID
 	if err := s.stockRepo.AdjustQuantity(ctx, orgID, productID, locationID, delta, cost); err != nil {
 		return fmt.Errorf("failed to adjust quantity: %w", err)
 	}
+
+	// Check for low stock after adjustment
+	// Fetch the updated stock to get current levels
+	stock, err := s.stockRepo.FindByProductAndLocation(ctx, productID, locationID)
+	if err == nil && stock != nil {
+		s.checkLowStock(ctx, stock)
+	}
+
 	return nil
 }
 
@@ -112,6 +124,8 @@ func (s *StockLevelService) AllocateStock(ctx context.Context, productID, locati
 		return fmt.Errorf("failed to allocate stock: %w", err)
 	}
 
+	s.checkLowStock(ctx, stock)
+
 	return nil
 }
 
@@ -131,4 +145,43 @@ func (s *StockLevelService) ReleaseStock(ctx context.Context, productID, locatio
 	}
 
 	return nil
+}
+
+// GetDashboardStats retrieves critical stock count and low stock items
+func (s *StockLevelService) GetDashboardStats(ctx context.Context, orgID primitive.ObjectID) (map[string]interface{}, error) {
+	criticalCount, lowStockItems, err := s.stockRepo.GetDashboardStats(ctx, orgID)
+	if err != nil {
+		return nil, err
+	}
+
+	return map[string]interface{}{
+		"critical_stock_count": criticalCount,
+		"low_stock_items":      lowStockItems,
+	}, nil
+}
+
+// checkLowStock checks if stock is below threshold and publishes event
+func (s *StockLevelService) checkLowStock(ctx context.Context, stock *models.StockLevel) {
+	// TODO: dynamically fetch threshold from Product service/DB.
+	// For now, hardcoded threshold of 10
+	threshold := 10.0
+
+	if stock.QuantityAvailable <= threshold {
+		event := map[string]interface{}{
+			"type":               "low_stock",
+			"product_id":         stock.ProductID.Hex(),
+			"location_id":        stock.LocationID.Hex(),
+			"organization_id":    stock.OrganizationID.Hex(),
+			"current_stock":      stock.QuantityAvailable,
+			"threshold":          threshold,
+			"warehouse_zone":     stock.WarehouseZone,
+			"quantity_on_hand":   stock.QuantityOnHand,
+			"quantity_allocated": stock.QuantityAllocated,
+		}
+
+		err := s.rabbitClient.Publish(ctx, "notification_events", "inventory.low_stock", event)
+		if err != nil {
+			log.Printf("Failed to publish low stock event: %v", err)
+		}
+	}
 }

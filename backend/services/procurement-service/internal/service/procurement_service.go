@@ -562,3 +562,23 @@ func (s *ProcurementService) generateGRNNumber(orgID primitive.ObjectID) string 
 	timestamp := time.Now().Unix()
 	return fmt.Sprintf("GRN-%06d", timestamp%1000000)
 }
+
+func (s *ProcurementService) GetDashboardStats(ctx context.Context, orgID primitive.ObjectID) (map[string]interface{}, error) {
+	// Pending POs
+	pendingPOCount, pendingApprovals, err := s.poRepo.GetDashboardStats(ctx, orgID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get PO stats: %w", err)
+	}
+
+	// Pending GRNs
+	pendingGRNCount, err := s.grnRepo.GetPendingCount(ctx, orgID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get GRN stats: %w", err)
+	}
+
+	return map[string]interface{}{
+		"pending_po_count":  pendingPOCount,
+		"pending_grn_count": pendingGRNCount,
+		"pending_approvals": pendingApprovals,
+	}, nil
+}

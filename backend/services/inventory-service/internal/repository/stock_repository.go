@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -345,6 +346,28 @@ func (r *BatchRepository) FindBatchByID(ctx context.Context, id primitive.Object
 	return &batch, nil
 }
 
+func (r *BatchRepository) FindExpiringBatches(ctx context.Context, days int) ([]*models.Batch, error) {
+	expiryThreshold := time.Now().AddDate(0, 0, days)
+	filter := bson.M{
+		"expiry_date":      bson.M{"$lte": expiryThreshold, "$gt": time.Now()},
+		"current_quantity": bson.M{"$gt": 0},
+		"is_active":        true,
+	}
+
+	opts := options.Find().SetSort(bson.D{{Key: "expiry_date", Value: 1}})
+	cursor, err := r.collection.Find(ctx, filter, opts)
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var batches []*models.Batch
+	if err = cursor.All(ctx, &batches); err != nil {
+		return nil, err
+	}
+	return batches, nil
+}
+
 // ==================== StockMovementRepository Additional Methods ====================
 
 func (r *StockMovementRepository) FindByID(ctx context.Context, id primitive.ObjectID) (*models.StockMovement, error) {
@@ -382,4 +405,42 @@ func (r *StockMovementRepository) Find(ctx context.Context, filters map[string]i
 	}
 
 	return movements, nil
+}
+
+// GetDashboardStats retrieves dashboard statistics
+func (r *StockLevelRepository) GetDashboardStats(ctx context.Context, orgID primitive.ObjectID) (int64, []*models.StockLevel, error) {
+	// Critical Stock Count (quantity_on_hand <= 0)
+	criticalCount, err := r.collection.CountDocuments(ctx, bson.M{
+		"organization_id":  orgID,
+		"quantity_on_hand": bson.M{"$lte": 0},
+	})
+	if err != nil {
+		return 0, nil, fmt.Errorf("failed to count critical stock: %w", err)
+	}
+
+	// Low Stock Items (0 < quantity_on_hand < 10) - Limit to top 5
+	opts := options.Find().
+		SetSort(bson.D{{Key: "quantity_on_hand", Value: 1}}).
+		SetLimit(5)
+
+	cursor, err := r.collection.Find(ctx, bson.M{
+		"organization_id":  orgID,
+		"quantity_on_hand": bson.M{"$gt": 0, "$lt": 10},
+	}, opts)
+	if err != nil {
+		return 0, nil, fmt.Errorf("failed to find low stock items: %w", err)
+	}
+	defer cursor.Close(ctx)
+
+	var lowStockItems []*models.StockLevel
+	if err = cursor.All(ctx, &lowStockItems); err != nil {
+		return 0, nil, fmt.Errorf("failed to decode low stock items: %w", err)
+	}
+
+	// Initialize slice if nil
+	if lowStockItems == nil {
+		lowStockItems = make([]*models.StockLevel, 0)
+	}
+
+	return criticalCount, lowStockItems, nil
 }

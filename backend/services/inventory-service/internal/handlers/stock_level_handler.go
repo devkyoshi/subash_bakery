@@ -9,6 +9,7 @@ import (
 
 	"github.com/yourusername/erp-system/services/inventory-service/internal/client"
 	"github.com/yourusername/erp-system/services/inventory-service/internal/service"
+	"github.com/yourusername/erp-system/shared/models"
 	"github.com/yourusername/erp-system/shared/utils"
 )
 
@@ -248,4 +249,51 @@ func (h *StockLevelHandler) ReleaseStock(c *gin.Context) {
 	}
 
 	utils.SuccessResponse(c, http.StatusOK, nil, "Stock released successfully")
+}
+
+func (h *StockLevelHandler) GetDashboardStats(c *gin.Context) {
+	orgIDStr := c.Query("organization_id")
+	if orgIDStr == "" {
+		// Try header
+		orgIDStr = c.GetHeader("x-organization-id")
+	}
+
+	if orgIDStr == "" {
+		utils.ErrorResponse(c, http.StatusBadRequest, "MISSING_ORG_ID", "Organization ID required", nil)
+		return
+	}
+
+	orgID, err := primitive.ObjectIDFromHex(orgIDStr)
+	if err != nil {
+		utils.ErrorResponse(c, http.StatusBadRequest, "INVALID_ORG_ID", "Invalid Organization ID", nil)
+		return
+	}
+
+	stats, err := h.stockLevelService.GetDashboardStats(c.Request.Context(), orgID)
+	if err != nil {
+		utils.ErrorResponse(c, http.StatusInternalServerError, "FETCH_FAILED", err.Error(), nil)
+		return
+	}
+
+	// Populate product names for low stock items
+	lowStockItems := stats["low_stock_items"].([]*models.StockLevel)
+	if len(lowStockItems) > 0 {
+		token := c.GetHeader("Authorization")
+		productIDs := make([]primitive.ObjectID, len(lowStockItems))
+		for i, item := range lowStockItems {
+			productIDs[i] = item.ProductID
+		}
+
+		productsMap, err := h.productClient.GetProductsBatch(c.Request.Context(), productIDs, token)
+		if err == nil {
+			for _, item := range lowStockItems {
+				if p, ok := productsMap[item.ProductID.Hex()]; ok {
+					item.ProductName = p.Name
+					item.SKU = p.SKU
+				}
+			}
+		}
+	}
+
+	utils.SuccessResponse(c, http.StatusOK, stats, "Dashboard stats retrieved successfully")
 }
