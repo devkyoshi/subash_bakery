@@ -403,7 +403,7 @@ func (h *ProcurementHandler) ListGRNs(c *gin.Context) {
 			"invoice_number": grn.InvoiceNumber,
 			"delivery_note":  grn.DeliveryNote,
 			"total_value":    grn.TotalValue,
-			"product_names":  grn.ProductNames,
+			"items":          grn.Items,
 			"po_unit":        grn.POUnitName,
 			"ordered_unit":   grn.OrderedUnitName,
 			"received_unit":  grn.ReceivedUnitName,

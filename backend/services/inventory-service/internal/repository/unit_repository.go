@@ -44,13 +44,17 @@ func (r *UnitRepository) FindByID(ctx context.Context, id primitive.ObjectID) (*
 func (r *UnitRepository) Find(ctx context.Context, filters map[string]interface{}, activeOnly bool) ([]*models.Unit, error) {
 	bsonFilters := bson.M{}
 	for k, v := range filters {
+		// specific handling for "ids" to map to "_id"
+		if k == "ids" {
+			if ids, ok := v.([]primitive.ObjectID); ok && len(ids) > 0 {
+				bsonFilters["_id"] = bson.M{"$in": ids}
+			}
+			continue
+		}
 		bsonFilters[k] = v
 	}
 	if activeOnly {
 		bsonFilters["is_active"] = true
-	}
-	if ids, ok := filters["ids"].([]primitive.ObjectID); ok && len(ids) > 0 {
-		bsonFilters["_id"] = bson.M{"$in": ids}
 	}
 
 	cursor, err := r.collection.Find(ctx, bsonFilters)

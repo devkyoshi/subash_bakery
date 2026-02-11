@@ -505,11 +505,15 @@ func (s *ProcurementService) ListGRNs(ctx context.Context, orgID primitive.Objec
 		fmt.Printf("Debug: No unit IDs collected from products\n")
 	}
 
-	// Collect supplier IDs
+	// Collect supplier IDs and PO IDs
 	supplierIDSet := make(map[string]primitive.ObjectID)
+	poIDSet := make(map[string]primitive.ObjectID)
 	for _, grn := range grns {
 		if !grn.SupplierID.IsZero() {
 			supplierIDSet[grn.SupplierID.Hex()] = grn.SupplierID
+		}
+		if !grn.PurchaseOrderID.IsZero() {
+			poIDSet[grn.PurchaseOrderID.Hex()] = grn.PurchaseOrderID
 		}
 	}
 
@@ -522,6 +526,15 @@ func (s *ProcurementService) ListGRNs(ctx context.Context, orgID primitive.Objec
 			if err == nil && supplier != nil {
 				suppliers[supplierID.Hex()] = supplier
 			}
+		}
+	}
+
+	// Fetch Purchase Orders (to get UnitPrice for items)
+	purchaseOrders := make(map[string]*models.PurchaseOrder)
+	for _, poID := range poIDSet {
+		po, err := s.poRepo.FindByID(ctx, poID)
+		if err == nil && po != nil {
+			purchaseOrders[poID.Hex()] = po
 		}
 	}
 
@@ -552,28 +565,46 @@ func (s *ProcurementService) ListGRNs(ctx context.Context, orgID primitive.Objec
 			}
 		}
 
+		// Build PO item price map for this GRN's PO
+		poItemPrices := make(map[string]float64)
+		if po, ok := purchaseOrders[grn.PurchaseOrderID.Hex()]; ok {
+			for _, poItem := range po.Items {
+				poItemPrices[poItem.ProductID.Hex()] = poItem.UnitPrice
+			}
+		}
+
 		// Enrich Products, Units, and Calculate Total
 		var totalValue float64
-		var productNames []string
-		// Use a set for unit names if they are uniform, or just take the first one found
 		var unitName string
 
-		for _, item := range grn.Items {
+		for i := range grn.Items {
+			// Fill UnitCost from PO if it is zero
+			if grn.Items[i].UnitCost == 0 {
+				if price, ok := poItemPrices[grn.Items[i].ProductID.Hex()]; ok {
+					grn.Items[i].UnitCost = price
+				}
+			}
+
 			// Total Value
-			itemTotal := item.ReceivedQuantity * item.UnitCost
+			itemTotal := grn.Items[i].ReceivedQuantity * grn.Items[i].UnitCost
 			totalValue += itemTotal
 
-			// Product Name & Unit
+			// Product Name, SKU, Description and Unit
 			if products != nil {
-				if prod, ok := products[item.ProductID.Hex()]; ok {
-					productNames = append(productNames, prod.Name)
+				if prod, ok := products[grn.Items[i].ProductID.Hex()]; ok {
+					grn.Items[i].ProductName = prod.Name
+
+					if grn.Items[i].SKU == "" {
+						grn.Items[i].SKU = prod.SKU
+					}
+					if grn.Items[i].Description == "" {
+						grn.Items[i].Description = prod.Description
+					}
 
 					// Unit
 					if unitName == "" && units != nil && !prod.BaseUnitID.IsZero() {
 						if unit, ok := units[prod.BaseUnitID.Hex()]; ok {
-							unitName = unit.Name // Or unit.Code
-						} else {
-							fmt.Printf("Debug: Unit not found for ID %s\n", prod.BaseUnitID.Hex())
+							unitName = unit.Name
 						}
 					}
 				}
@@ -581,7 +612,6 @@ func (s *ProcurementService) ListGRNs(ctx context.Context, orgID primitive.Objec
 		}
 
 		grn.TotalValue = totalValue
-		grn.ProductNames = productNames
 		grn.POUnitName = unitName
 		grn.OrderedUnitName = unitName
 		grn.ReceivedUnitName = unitName

@@ -137,6 +137,7 @@ export interface CreatePurchaseOrderRequest {
 
 export interface GRNItem {
   product_id: string;
+  product_name?: string;
   sku?: string;
   description?: string;
   ordered_quantity?: number;
@@ -194,7 +195,7 @@ export interface GoodsReceiptNoteSummary {
   invoice_number?: string;
   delivery_note?: string;
   total_value: number;
-  product_names: string[];
+  items: GRNItem[];
   po_unit?: string;
   ordered_unit?: string;
   received_unit?: string;

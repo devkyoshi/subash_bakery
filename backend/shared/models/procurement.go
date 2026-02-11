@@ -182,15 +182,15 @@ type GoodsReceiptNote struct {
 	LocationName    string `bson:"-" json:"location_name,omitempty"`
 
 	// Calculated/Enriched for List View
-	TotalValue       float64  `bson:"-" json:"total_value,omitempty"`
-	ProductNames     []string `bson:"-" json:"product_names,omitempty"`
-	POUnitName       string   `bson:"-" json:"po_unit_name,omitempty"`       // Assuming single unit for simplicity or comma separated
-	OrderedUnitName  string   `bson:"-" json:"ordered_unit_name,omitempty"`  // Assuming single unit for simplicity or comma separated
-	ReceivedUnitName string   `bson:"-" json:"received_unit_name,omitempty"` // Assuming single unit for simplicity or comma separated
+	TotalValue       float64 `bson:"-" json:"total_value,omitempty"`
+	POUnitName       string  `bson:"-" json:"po_unit_name,omitempty"`
+	OrderedUnitName  string  `bson:"-" json:"ordered_unit_name,omitempty"`
+	ReceivedUnitName string  `bson:"-" json:"received_unit_name,omitempty"`
 }
 
 type GRNItem struct {
 	ProductID        primitive.ObjectID `bson:"product_id" json:"product_id" binding:"required"`
+	ProductName      string             `bson:"-" json:"product_name,omitempty"`
 	SKU              string             `bson:"sku" json:"sku"`
 	Description      string             `bson:"description" json:"description"`
 	OrderedQuantity  float64            `bson:"ordered_quantity" json:"ordered_quantity"`

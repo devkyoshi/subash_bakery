@@ -99,7 +99,7 @@ func (c *InventoryClient) GetUnitsBatch(ctx context.Context, unitIDs []string, t
 		idsParam += id
 	}
 
-	url := fmt.Sprintf("%s/api/v1/inventory/units?ids=%s", c.baseURL, idsParam)
+	url := fmt.Sprintf("%s/api/v1/units?ids=%s", c.baseURL, idsParam)
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, err

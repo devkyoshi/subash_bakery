@@ -230,13 +230,16 @@ export function GRNListPage() {
                     <div className="flex flex-col">
                       <span
                         className="font-medium truncate max-w-[200px]"
-                        title={grn.product_names?.join(", ")}
+                        title={grn.items
+                          ?.map((i) => i.product_name)
+                          .filter(Boolean)
+                          .join(", ")}
                       >
-                        {grn.product_names?.length > 0
-                          ? grn.product_names[0]
+                        {grn.items?.length > 0
+                          ? grn.items[0].product_name || grn.items[0].product_id
                           : "-"}
-                        {grn.product_names?.length > 1 &&
-                          ` +${grn.product_names.length - 1} more`}
+                        {grn.items?.length > 1 &&
+                          ` +${grn.items.length - 1} more`}
                       </span>
                       <span className="text-xs text-muted-foreground">
                         {grn.po_unit ? `${grn.po_unit}` : ""}
@@ -246,7 +249,7 @@ export function GRNListPage() {
                   <TableCell>
                     {new Intl.NumberFormat("en-US", {
                       style: "currency",
-                      currency: "LKR", 
+                      currency: "LKR",
                     }).format(grn.total_value || 0)}
                   </TableCell>
                   <TableCell>
