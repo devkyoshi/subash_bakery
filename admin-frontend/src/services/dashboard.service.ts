@@ -13,6 +13,7 @@ export type DashboardData = {
   orders: OrderItem[];
   activities: ActivityItem[];
   sales: SalesPoint[];
+  inventoryAlerts: LowStockItem[];
 };
 
 interface ApiResponse<T> {
@@ -22,9 +23,19 @@ interface ApiResponse<T> {
   timestamp: string;
 }
 
+export interface LowStockItem {
+  product_id: string;
+  product_name: string;
+  sku: string;
+  quantity_on_hand: number;
+  quantity_available: number;
+  quantity_allocated: number;
+  warehouse_zone: string;
+}
+
 interface InventoryStats {
   critical_stock_count: number;
-  low_stock_items: any[]; // refined type would be better but keeping simple for now
+  low_stock_items: LowStockItem[];
 }
 
 interface ProcurementStats {
@@ -101,16 +112,25 @@ export async function getDashboardData(): Promise<DashboardData> {
     // As per plan, these services might not exist yet.
     const reports: ReportItem[] = [
       {
-        id: "sales",
-        title: "Sales Report",
-        subtitle: "Unavailable",
-        tone: "info",
+        id: "po-vs-grn",
+        title: "PO vs GRN Comparison",
+        subtitle: "Compare purchase orders with goods received",
+        tone: "success",
+        route: "/app/reports/po-vs-grn",
       },
       {
-        id: "inventory",
-        title: "Inventory Report",
-        subtitle: "Available",
-        tone: "success",
+        id: "stock-levels",
+        title: "Stock Level Report",
+        subtitle: "Monitor stock levels and status",
+        tone: "brand",
+        route: "/app/reports/stock-levels",
+      },
+      {
+        id: "reorder-status",
+        title: "Reorder Status",
+        subtitle: "Track items needing reorder",
+        tone: "warning",
+        route: "/app/reports/reorder-status",
       },
     ];
 
@@ -139,6 +159,7 @@ export async function getDashboardData(): Promise<DashboardData> {
       orders,
       activities,
       sales,
+      inventoryAlerts: inventory.low_stock_items || [],
     };
   } catch (error) {
     console.error("Failed to fetch dashboard data:", error);
@@ -149,6 +170,7 @@ export async function getDashboardData(): Promise<DashboardData> {
       orders: [],
       activities: [],
       sales: [],
+      inventoryAlerts: [],
     };
   }
 }

@@ -11,7 +11,8 @@ export type ReportItem = {
   id: string;
   title: string;
   subtitle: string;
-  tone: "info" | "success" | "brand";
+  tone: "info" | "success" | "brand" | "warning";
+  route?: string;
 };
 
 export type OrderItem = {

@@ -65,8 +65,13 @@ func main() {
 	unitRepo := repository.NewUnitRepository(db)
 	unitChartRepo := repository.NewUnitChartRepository(db)
 
+	// Initialize clients
+	productClient := client.NewProductClient(cfg)
+	orgClient := client.NewOrgClient(cfg)
+	userClient := client.NewUserClient(cfg)
+
 	// Initialize services
-	stockLevelService := service.NewStockLevelService(stockLevelRepo, rabbitClient)
+	stockLevelService := service.NewStockLevelService(stockLevelRepo, rabbitClient, productClient)
 	stockService := service.NewStockService(stockLevelRepo, stockMovementRepo, batchRepo)
 	batchService := service.NewBatchService(batchRepo, stockLevelRepo)
 	adjustmentService := service.NewStockAdjustmentService(adjustmentRepo, stockLevelRepo, stockMovementRepo)
@@ -74,11 +79,6 @@ func main() {
 	serialNumberService := service.NewSerialNumberService(serialRepo, stockLevelRepo)
 	unitService := service.NewUnitService(unitRepo, unitChartRepo)
 	unitChartService := service.NewUnitChartService(unitChartRepo, unitRepo)
-
-	// Initialize clients
-	productClient := client.NewProductClient(cfg)
-	orgClient := client.NewOrgClient(cfg)
-	userClient := client.NewUserClient(cfg)
 
 	// Initialize handlers
 	inventoryHandler := handlers.NewInventoryHandler(

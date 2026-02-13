@@ -36,7 +36,9 @@ func (h *RPCHandler) HandleDashboardStats(body []byte) (interface{}, error) {
 		return nil, fmt.Errorf("invalid organization ID: %v", err)
 	}
 
-	stats, err := h.stockLevelService.GetDashboardStats(context.Background(), orgID)
+	token, _ := req.Params["auth_token"].(string)
+
+	stats, err := h.stockLevelService.GetDashboardStats(context.Background(), orgID, token)
 	if err != nil {
 		log.Printf("Failed to get dashboard stats: %v", err)
 		return nil, err

@@ -11,6 +11,7 @@ import { ActivityCard } from "@/components/dashboard/ActivityCard";
 import { CalendarCard } from "@/components/dashboard/CalendarCard";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { InventoryAlerts } from "@/components/dashboard/InventoryAlerts";
 
 import { useNavigate } from "react-router-dom";
 
@@ -89,8 +90,9 @@ export function DashboardPage() {
         ))}
       </section>
 
-      {/* Reports & Orders - Responsive: 1 col mobile, 2 cols tablet+ */}
-      <section className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-6">
+      {/* Reports & Orders & Alerts - Responsive: 1 col mobile, 3 cols desktop */}
+      <section className="grid grid-cols-1 gap-4 lg:grid-cols-3 lg:gap-6">
+        <InventoryAlerts items={data.inventoryAlerts || []} />
         <ReportsCard items={data.reports} />
         {/* Reuse OrderCard for Pending Approvals */}
         <OrderCard

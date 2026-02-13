@@ -35,7 +35,7 @@ type RPCRequest struct {
 	Params         map[string]interface{} `json:"params,omitempty"`
 }
 
-func (s *AggregationService) GetDashboardOverview(ctx context.Context, orgID primitive.ObjectID) (*DashboardOverview, error) {
+func (s *AggregationService) GetDashboardOverview(ctx context.Context, orgID primitive.ObjectID, token string) (*DashboardOverview, error) {
 	var wg sync.WaitGroup
 	overview := &DashboardOverview{}
 	errors := make([]string, 0)
@@ -43,6 +43,9 @@ func (s *AggregationService) GetDashboardOverview(ctx context.Context, orgID pri
 
 	rpcReq := RPCRequest{
 		OrganizationID: orgID.Hex(),
+		Params: map[string]interface{}{
+			"auth_token": token,
+		},
 	}
 
 	// Fetch Inventory Stats

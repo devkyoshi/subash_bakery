@@ -9,7 +9,6 @@ import (
 
 	"github.com/yourusername/erp-system/services/inventory-service/internal/client"
 	"github.com/yourusername/erp-system/services/inventory-service/internal/service"
-	"github.com/yourusername/erp-system/shared/models"
 	"github.com/yourusername/erp-system/shared/utils"
 )
 
@@ -269,30 +268,12 @@ func (h *StockLevelHandler) GetDashboardStats(c *gin.Context) {
 		return
 	}
 
-	stats, err := h.stockLevelService.GetDashboardStats(c.Request.Context(), orgID)
+	token := c.GetHeader("Authorization")
+
+	stats, err := h.stockLevelService.GetDashboardStats(c.Request.Context(), orgID, token)
 	if err != nil {
 		utils.ErrorResponse(c, http.StatusInternalServerError, "FETCH_FAILED", err.Error(), nil)
 		return
-	}
-
-	// Populate product names for low stock items
-	lowStockItems := stats["low_stock_items"].([]*models.StockLevel)
-	if len(lowStockItems) > 0 {
-		token := c.GetHeader("Authorization")
-		productIDs := make([]primitive.ObjectID, len(lowStockItems))
-		for i, item := range lowStockItems {
-			productIDs[i] = item.ProductID
-		}
-
-		productsMap, err := h.productClient.GetProductsBatch(c.Request.Context(), productIDs, token)
-		if err == nil {
-			for _, item := range lowStockItems {
-				if p, ok := productsMap[item.ProductID.Hex()]; ok {
-					item.ProductName = p.Name
-					item.SKU = p.SKU
-				}
-			}
-		}
 	}
 
 	utils.SuccessResponse(c, http.StatusOK, stats, "Dashboard stats retrieved successfully")

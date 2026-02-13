@@ -40,7 +40,8 @@ func (h *DashboardHandler) GetOverview(c *gin.Context) {
 		return
 	}
 
-	overview, err := h.aggregationService.GetDashboardOverview(c.Request.Context(), orgID)
+	token := c.GetHeader("Authorization")
+	overview, err := h.aggregationService.GetDashboardOverview(c.Request.Context(), orgID, token)
 	if err != nil {
 		utils.ErrorResponse(c, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error(), nil)
 		return
