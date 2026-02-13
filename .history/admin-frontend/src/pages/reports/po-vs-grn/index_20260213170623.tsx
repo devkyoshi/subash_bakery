@@ -384,7 +384,7 @@ export const POvsGRNPage: React.FC = () => {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <div className="font-medium text-foreground text-xs">
+                      <div className="font-medium text-foreground text-sm">
                         {item.sku}
                       </div>
                       <div className="text-xs text-primary/80">

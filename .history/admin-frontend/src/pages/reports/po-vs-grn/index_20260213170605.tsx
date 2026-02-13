@@ -372,19 +372,19 @@ export const POvsGRNPage: React.FC = () => {
               <TableBody>
                 {items.map((item, idx) => (
                   <TableRow key={`${item.po_id}-${item.product_id}-${idx}`} className="hover:bg-muted/50">
-                    <TableCell className="font-medium text-primary text-xs">
+                    <TableCell className="font-medium text-primary">
                       <div>#{item.po_number}</div>
                     </TableCell>
                     <TableCell className="text-muted-foreground text-xs">
                       {item.order_date}
                     </TableCell>
                     <TableCell>
-                      <div className="font-medium text-foreground text-xs">
+                      <div className="font-medium text-foreground text-sm">
                         {item.supplier_name}
                       </div>
                     </TableCell>
                     <TableCell>
-                      <div className="font-medium text-foreground text-xs">
+                      <div className="font-medium text-foreground text-sm">
                         {item.sku}
                       </div>
                       <div className="text-xs text-primary/80">

@@ -379,12 +379,12 @@ export const POvsGRNPage: React.FC = () => {
                       {item.order_date}
                     </TableCell>
                     <TableCell>
-                      <div className="font-medium text-foreground text-xs">
+                      <div className="font-medium text-foreground text-sm">
                         {item.supplier_name}
                       </div>
                     </TableCell>
                     <TableCell>
-                      <div className="font-medium text-foreground text-xs">
+                      <div className="font-medium text-foreground text-sm">
                         {item.sku}
                       </div>
                       <div className="text-xs text-primary/80">
