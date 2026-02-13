@@ -48,9 +48,10 @@ func main() {
 
 	// Initialize Repositories
 	deviceRepo := repository.NewDeviceRepository(db)
+	notifRepo := repository.NewNotificationRepository(db)
 
 	// Initialize Services
-	notifService, err := service.NewNotificationService(cfg, deviceRepo)
+	notifService, err := service.NewNotificationService(cfg, deviceRepo, notifRepo)
 	if err != nil {
 		log.Printf("Warning: Failed to initialize Notification Service (Firebase): %v", err)
 		// Proceeding without Firebase for testing or partial functionality
@@ -60,6 +61,7 @@ func main() {
 	// Initialize Handlers
 	deviceHandler := handler.NewDeviceHandler(deviceRepo, notifService)
 	eventHandler := handler.NewEventHandler(rabbitClient, notifService)
+	notifHandler := handler.NewNotificationHandler(notifService)
 
 	// Start RabbitMQ Consumer
 	go func() {
@@ -77,6 +79,7 @@ func main() {
 	api := router.Group("/api/v1")
 	api.Use(middleware.AuthMiddleware(jwtManager))
 	deviceHandler.RegisterRoutes(api)
+	notifHandler.RegisterRoutes(api)
 
 	// Health Check
 	router.GET("/health", func(c *gin.Context) {

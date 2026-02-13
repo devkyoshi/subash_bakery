@@ -8,17 +8,19 @@ import (
 	firebase "firebase.google.com/go"
 	"firebase.google.com/go/messaging"
 	"github.com/yourusername/erp-system/services/notification-service/config"
+	"github.com/yourusername/erp-system/services/notification-service/internal/models"
 	"github.com/yourusername/erp-system/services/notification-service/internal/repository"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"google.golang.org/api/option"
 )
 
 type NotificationService struct {
+	notifRepo  *repository.NotificationRepository
 	deviceRepo *repository.DeviceRepository
 	fcmClient  *messaging.Client
 }
 
-func NewNotificationService(cfg *config.Config, deviceRepo *repository.DeviceRepository) (*NotificationService, error) {
+func NewNotificationService(cfg *config.Config, deviceRepo *repository.DeviceRepository, notifRepo *repository.NotificationRepository) (*NotificationService, error) {
 	// Initialize Firebase
 	opt := option.WithCredentialsFile(cfg.FirebaseCredentialsPath)
 	conf := &firebase.Config{ProjectID: cfg.FirebaseProjectID}
@@ -33,16 +35,39 @@ func NewNotificationService(cfg *config.Config, deviceRepo *repository.DeviceRep
 	}
 
 	return &NotificationService{
+		notifRepo:  notifRepo,
 		deviceRepo: deviceRepo,
 		fcmClient:  client,
 	}, nil
 }
 
-// SendPushNotification sends a notification to all devices in an organization
+// SendPushNotification sends a notification to all devices in an organization and persists it
 func (s *NotificationService) SendPushNotification(ctx context.Context, orgID primitive.ObjectID, title, body string, data map[string]string) error {
 	tokens, err := s.deviceRepo.FindByOrganizationID(ctx, orgID)
 	if err != nil {
 		return fmt.Errorf("failed to fetch device tokens: %w", err)
+	}
+
+	// Persist notification for each unique user found in tokens
+	// ideally we would fetch all users in the org from user-service, but for now we rely on registered devices
+	uniqueUserIDs := make(map[string]primitive.ObjectID)
+	for _, t := range tokens {
+		uniqueUserIDs[t.UserID.Hex()] = t.UserID
+	}
+
+	for _, uid := range uniqueUserIDs {
+		n := &models.Notification{
+			UserID:         uid,
+			OrganizationID: orgID,
+			Title:          title,
+			Body:           body,
+			Type:           data["type"], // assuming 'type' is in data
+			Data:           data,
+		}
+		if err := s.notifRepo.Create(ctx, n); err != nil {
+			log.Printf("Failed to persist notification for user %s: %v", uid.Hex(), err)
+			// continue, don't block push
+		}
 	}
 
 	if len(tokens) == 0 {
@@ -57,7 +82,13 @@ func (s *NotificationService) SendPushNotification(ctx context.Context, orgID pr
 		if end > len(tokens) {
 			end = len(tokens)
 		}
-		batchTokens := tokens[i:end]
+		batchDevices := tokens[i:end]
+
+		// Extract token strings for FCM
+		var batchTokens []string
+		for _, d := range batchDevices {
+			batchTokens = append(batchTokens, d.Token)
+		}
 
 		message := &messaging.MulticastMessage{
 			Tokens: batchTokens,
@@ -95,4 +126,16 @@ func (s *NotificationService) SendPushNotification(ctx context.Context, orgID pr
 	}
 
 	return nil
+}
+
+func (s *NotificationService) GetNotifications(ctx context.Context, userID primitive.ObjectID) ([]*models.Notification, error) {
+	return s.notifRepo.FindByUserID(ctx, userID, 50) // Limit 50
+}
+
+func (s *NotificationService) MarkAsRead(ctx context.Context, id, userID primitive.ObjectID) error {
+	return s.notifRepo.MarkAsRead(ctx, id, userID)
+}
+
+func (s *NotificationService) MarkAllAsRead(ctx context.Context, userID primitive.ObjectID) error {
+	return s.notifRepo.MarkAllAsRead(ctx, userID)
 }

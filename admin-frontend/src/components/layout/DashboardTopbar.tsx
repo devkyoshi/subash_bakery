@@ -1,16 +1,17 @@
-import { Bell, Search, Menu } from "lucide-react";
+import { Search, Menu } from "lucide-react";
 import { ThemeToggle } from "@/components/common/ThemeToggle";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { UserMenu } from "@/components/common/UserMenu";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import {
   requestForToken,
   onMessageListener,
 } from "@/services/notification.service";
 import { toast } from "sonner";
+import { NotificationPopover } from "./NotificationPopover";
 
 const TITLE_BY_PREFIX: Array<{ prefix: string; title: string }> = [
   { prefix: "/app/dashboard", title: "Dashboard" },
@@ -32,7 +33,7 @@ interface DashboardTopbarProps {
 export function DashboardTopbar({ onMenuClick }: DashboardTopbarProps) {
   const location = useLocation();
   const { user } = useAuth();
-  const [hasUnread, setHasUnread] = useState(false);
+  // removed hasUnread state as it is handled in NotificationPopover
 
   useEffect(() => {
     // Request permission and token on mount
@@ -41,7 +42,7 @@ export function DashboardTopbar({ onMenuClick }: DashboardTopbarProps) {
     // Listen for foreground messages
     const unsubscribe = onMessageListener((payload: any) => {
       console.log("Received foreground message:", payload);
-      setHasUnread(true);
+      // We could trigger a refresh here if we exposed a context or ref
       toast(payload.notification?.title || "New Notification", {
         description: payload.notification?.body,
         action: {
@@ -96,16 +97,7 @@ export function DashboardTopbar({ onMenuClick }: DashboardTopbarProps) {
         <div className="flex items-center gap-2">
           <ThemeToggle />
 
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setHasUnread(false)}
-          >
-            <Bell className="h-4 w-4" />
-            {hasUnread && (
-              <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-destructive" />
-            )}
-          </Button>
+          <NotificationPopover />
 
           {/* User Menu */}
           <UserMenu variant="topbar" />

@@ -1,6 +1,7 @@
 import { messaging } from "../lib/firebase";
 import { getToken, onMessage } from "firebase/messaging";
 import axios from "axios";
+import type { Notification as AppNotification } from "../types/notification.types";
 
 const VAPID_KEY = import.meta.env.VITE_FIREBASE_VAPID_KEY; // Optional, if using VAPID
 const API_URL = import.meta.env.VITE_API_BASE_URL || "/api/v1";
@@ -54,5 +55,51 @@ const registerDevice = async (token: string) => {
     );
   } catch (error) {
     console.error("Error registering device:", error);
+  }
+};
+
+export const getNotifications = async (): Promise<AppNotification[]> => {
+  try {
+    const response = await axios.get(`${API_URL}/notifications`, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+      },
+    });
+    return response.data.data || [];
+  } catch (error) {
+    console.error("Failed to fetch notifications:", error);
+    return [];
+  }
+};
+
+export const markAsRead = async (id: string): Promise<void> => {
+  try {
+    await axios.patch(
+      `${API_URL}/notifications/${id}/read`,
+      {},
+      {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+        },
+      },
+    );
+  } catch (error) {
+    console.error("Failed to mark notification as read:", error);
+  }
+};
+
+export const markAllAsRead = async (): Promise<void> => {
+  try {
+    await axios.patch(
+      `${API_URL}/notifications/read-all`,
+      {},
+      {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+        },
+      },
+    );
+  } catch (error) {
+    console.error("Failed to mark all notifications as read:", error);
   }
 };

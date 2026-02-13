@@ -45,30 +45,21 @@ func (r *DeviceRepository) Register(ctx context.Context, device *models.DeviceTo
 }
 
 // FindByOrganizationID finds all device tokens for an organization
-func (r *DeviceRepository) FindByOrganizationID(ctx context.Context, orgID primitive.ObjectID) ([]string, error) {
+func (r *DeviceRepository) FindByOrganizationID(ctx context.Context, orgID primitive.ObjectID) ([]*models.DeviceToken, error) {
 	filter := bson.M{"organization_id": orgID}
-	// Projection: only return token string
-	opts := options.Find().SetProjection(bson.M{"token": 1})
 
-	cursor, err := r.collection.Find(ctx, filter, opts)
+	cursor, err := r.collection.Find(ctx, filter)
 	if err != nil {
 		return nil, err
 	}
 	defer cursor.Close(ctx)
 
-	var results []struct {
-		Token string `bson:"token"`
-	}
-	if err = cursor.All(ctx, &results); err != nil {
+	var devices []*models.DeviceToken
+	if err = cursor.All(ctx, &devices); err != nil {
 		return nil, err
 	}
 
-	tokens := make([]string, len(results))
-	for i, r := range results {
-		tokens[i] = r.Token
-	}
-
-	return tokens, nil
+	return devices, nil
 }
 
 // Delete removes a token (e.g. on logout)

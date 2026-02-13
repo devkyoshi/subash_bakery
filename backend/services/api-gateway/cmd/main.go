@@ -94,7 +94,7 @@ func main() {
 			targetURL = cfg.ProductServiceURL
 		} else if strings.HasPrefix(path, "/unit-charts") {
 			targetURL = cfg.InventoryServiceURL
-		} else if strings.HasPrefix(path, "/devices") {
+		} else if strings.HasPrefix(path, "/devices") || strings.HasPrefix(path, "/notifications") {
 			targetURL = cfg.NotificationServiceURL
 		} else {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Service not found"})
@@ -114,10 +114,6 @@ func main() {
 		proxy.Director = func(req *http.Request) {
 			originalDirector(req)
 			req.Host = remote.Host
-			// We can strip prefix if needed, but here we forward the full /api/v1/... path
-			// if the services expect /api/v1/...
-			// The services in this project seem to define groups like router.Group("/api/v1") in their main.go
-			// So forwarding the full path is correct.
 		}
 
 		// Modify response to strip CORS headers from backend to avoid duplication
