@@ -126,6 +126,12 @@ func main() {
 	go expiryChecker.Start(context.Background())
 	log.Println("Expiry Checker Worker started")
 
+	// Initialize RPC Handler
+	rpcHandler := handlers.NewRPCHandler(stockLevelService)
+	if err := rabbitClient.RPCServe("inventory.dashboard.stats", rpcHandler.HandleDashboardStats); err != nil {
+		log.Fatalf("Failed to start RPC server: %v", err)
+	}
+
 	// Start server
 	port := fmt.Sprintf("0.0.0.0:%s", cfg.Port)
 	log.Printf("Inventory Service starting on port %s", cfg.Port)

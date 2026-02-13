@@ -96,6 +96,8 @@ func main() {
 			targetURL = cfg.InventoryServiceURL
 		} else if strings.HasPrefix(path, "/devices") || strings.HasPrefix(path, "/notifications") {
 			targetURL = cfg.NotificationServiceURL
+		} else if strings.HasPrefix(path, "/dashboard") {
+			targetURL = cfg.DashboardServiceURL
 		} else {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Service not found"})
 			return

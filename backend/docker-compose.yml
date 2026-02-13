@@ -60,6 +60,7 @@ services:
       INVENTORY_SERVICE_URL: http://inventory-service:8004
       PROCUREMENT_SERVICE_URL: http://procurement-service:8005
       NOTIFICATION_SERVICE_URL: http://notification-service:8007
+      DASHBOARD_SERVICE_URL: http://dashboard-service:8008
     ports:
       - "8080:8080"
     depends_on:
@@ -69,6 +70,7 @@ services:
       - inventory-service
       - procurement-service
       - notification-service
+      - dashboard-service
     networks:
       - erp-network
 
@@ -173,15 +175,36 @@ services:
       PORT: 8005
       MONGO_URI: mongodb://admin:admin123@mongodb:27017
       REDIS_ADDR: redis:6379
+      RABBITMQ_URL: amqp://admin:admin123@rabbitmq:5672/
       JWT_SECRET: your-super-secret-jwt-key-change-in-production
     ports:
       - "8005:8005"
     depends_on:
       - mongodb
       - redis
+      - rabbitmq
     networks:
       - erp-network
 
+
+  # Dashboard Service
+  dashboard-service:
+    build:
+      context: .
+      dockerfile: ./services/dashboard-service/Dockerfile
+    container_name: erp-dashboard-service
+    restart: unless-stopped
+    environment:
+      PORT: 8008
+      MONGO_URI: mongodb://admin:admin123@mongodb:27017
+      RABBITMQ_URL: amqp://admin:admin123@rabbitmq:5672/
+      JWT_SECRET: your-super-secret-jwt-key-change-in-production
+    ports:
+      - "8008:8008"
+    depends_on:
+      - rabbitmq
+    networks:
+      - erp-network
 
   # Notification Service
   notification-service:

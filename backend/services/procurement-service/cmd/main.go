@@ -18,6 +18,7 @@ import (
 	"github.com/yourusername/erp-system/services/procurement-service/internal/repository"
 	"github.com/yourusername/erp-system/services/procurement-service/internal/service"
 	"github.com/yourusername/erp-system/shared/middleware"
+	"github.com/yourusername/erp-system/shared/rabbitmq"
 	"github.com/yourusername/erp-system/shared/utils"
 )
 
@@ -54,8 +55,16 @@ func main() {
 	userClient := client.NewUserClient(cfg)
 	inventoryClient := client.NewInventoryClient(cfg)
 
+	// Initialize RabbitMQ
+	rabbitClient, err := rabbitmq.NewRabbitMQClient(cfg.RabbitMQURL)
+	if err != nil {
+		log.Printf("Failed to connect to RabbitMQ: %v", err)
+	} else {
+		defer rabbitClient.Close()
+	}
+
 	// Initialize services
-	procurementService := service.NewProcurementService(supplierRepo, poRepo, grnRepo, productClient, userClient, inventoryClient)
+	procurementService := service.NewProcurementService(supplierRepo, poRepo, grnRepo, productClient, userClient, inventoryClient, rabbitClient)
 
 	// Initialize handlers
 	procurementHandler := handlers.NewProcurementHandler(procurementService)
@@ -90,6 +99,18 @@ func main() {
 	// API routes
 	api := router.Group("/api/v1")
 	procurementHandler.RegisterRoutes(api, jwtManager)
+
+	// Initialize RPC Handler
+	if rabbitClient != nil {
+		rpcHandler := handlers.NewRPCHandler(procurementService)
+		_, err := rabbitClient.DeclareQueue("procurement.dashboard.stats")
+		if err != nil {
+			log.Fatalf("Failed to declare RPC queue: %v", err)
+		}
+		if err := rabbitClient.RPCServe("procurement.dashboard.stats", rpcHandler.HandleDashboardStats); err != nil {
+			log.Fatalf("Failed to start RPC server: %v", err)
+		}
+	}
 
 	// Start server
 	port := fmt.Sprintf(":%s", cfg.Port)
