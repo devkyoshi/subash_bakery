@@ -12,6 +12,8 @@ import { DashboardPage } from "@/pages/dashboard/Dashboard";
 import { CalendarPage } from "@/pages/dashboard/Calendar";
 import { OrdersPage } from "@/pages/dashboard/Orders";
 import { ReportsPage } from "@/pages/dashboard/Reports";
+
+import POvsGRNPage from "@/pages/reports/po-vs-grn";
 import { UsersPage } from "@/pages/users/Users";
 import { TransactionsPage } from "@/pages/dashboard/Transactions";
 import { AnalyticsPage } from "@/pages/dashboard/Analytics";
@@ -68,6 +70,7 @@ export function AppRoutes() {
       >
         <Route path="dashboard" element={<DashboardPage />} />
         <Route path="reports" element={<ReportsPage />} />
+        <Route path="reports/po-vs-grn" element={<POvsGRNPage />} />
         <Route path="orders" element={<OrdersPage />} />
         <Route path="calendar" element={<CalendarPage />} />
 
@@ -129,7 +132,7 @@ export function AppRoutes() {
         <Route path="procurement/grn/new" element={<CreateGRNPage />} />
         <Route path="procurement/grn/:id" element={<GRNDetailsPage />} />
 
-        <Route path="inventory" element={<StockLevelsPage />} />
+        <Route path="inventory/stock-levels" element={<StockLevelsPage />} />
         <Route path="inventory/movements" element={<StockMovementsPage />} />
 
         <Route

@@ -51,7 +51,7 @@ export const SIDEBAR_NAV: SidebarNavItem[] = [
     to: "/app/inventory",
     icon: Boxes,
     submenu: [
-      { label: "Stock Levels", to: "/app/inventory", icon: Boxes },
+      { label: "Stock Levels", to: "/app/inventory/stock-levels", icon: Boxes },
       {
         label: "Adjustments",
         to: "/app/inventory/adjustments",
@@ -62,6 +62,14 @@ export const SIDEBAR_NAV: SidebarNavItem[] = [
         to: "/app/inventory/movements",
         icon: ArrowRightLeft,
       },
+    ],
+  },
+  {
+    label: "Reports",
+    to: "/app/reports",
+    icon: FileText,
+    submenu: [
+      { label: "PO vs GRN", to: "/app/reports/po-vs-grn", icon: Boxes },
     ],
   },
   {
