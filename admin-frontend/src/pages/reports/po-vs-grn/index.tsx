@@ -179,7 +179,7 @@ export const POvsGRNPage: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground border-l-4 border-orange-500 pl-3">
+          <h1 className="text-2xl font-bold tracking-tight text-foreground border-l-4 border-primary pl-3">
             PO vs GRN Comparison
           </h1>
           <p className="text-muted-foreground mt-1 pl-4 flex items-center gap-2 text-sm">
@@ -203,7 +203,7 @@ export const POvsGRNPage: React.FC = () => {
           <Button variant="outline" className="gap-2">
             <Printer className="h-4 w-4" /> Print
           </Button>
-          <Button className="gap-2 bg-orange-600 hover:bg-orange-700 text-white dark:bg-orange-700 dark:hover:bg-orange-600">
+          <Button className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground shadow">
             <RefreshCw className="h-4 w-4" /> Refresh Data
           </Button>
         </div>
@@ -251,7 +251,7 @@ export const POvsGRNPage: React.FC = () => {
           <div className="flex-1" />
           <Button
             variant="secondary"
-            className="bg-orange-50 text-orange-700 hover:bg-orange-100 hover:text-orange-800 border border-orange-200 dark:bg-orange-950/30 dark:text-orange-400 dark:border-orange-900 dark:hover:bg-orange-900/50"
+            className="bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary border border-primary/20"
           >
             Apply Filters
           </Button>
@@ -346,7 +346,7 @@ export const POvsGRNPage: React.FC = () => {
               <TableBody>
                 {PO_DATA.map((po) => (
                   <TableRow key={po.id} className="hover:bg-muted/50">
-                    <TableCell className="font-medium text-orange-600 dark:text-orange-400">
+                    <TableCell className="font-medium text-primary">
                       <div>{po.id.replace("PO-", "#PO-")}</div>
                       <div className="text-xs text-muted-foreground">
                         {po.id.split("-").slice(0, 2).join("-")}
@@ -364,7 +364,7 @@ export const POvsGRNPage: React.FC = () => {
                       <div className="font-medium text-foreground text-sm">
                         {po.item}
                       </div>
-                      <div className="text-xs text-orange-500 dark:text-orange-400">
+                      <div className="text-xs text-primary/80">
                         {po.itemName}
                       </div>
                     </TableCell>
@@ -405,7 +405,7 @@ export const POvsGRNPage: React.FC = () => {
                 <Button
                   variant="default"
                   size="sm"
-                  className="h-8 bg-orange-600 hover:bg-orange-700 dark:bg-orange-700 dark:hover:bg-orange-600"
+                  className="h-8 bg-primary hover:bg-primary/90"
                 >
                   1
                 </Button>
@@ -508,7 +508,7 @@ export const POvsGRNPage: React.FC = () => {
                       ? "bg-red-50 dark:bg-red-900/20 border-red-500"
                       : item.type === "warning"
                         ? "bg-amber-50 dark:bg-amber-900/20 border-amber-500"
-                        : "bg-orange-50 dark:bg-orange-900/20 border-orange-500"
+                        : "bg-primary/10 border-primary/50"
                   }`}
                 >
                   <div className="flex justify-between items-start mb-1">
@@ -518,7 +518,7 @@ export const POvsGRNPage: React.FC = () => {
                           ? "text-red-700 dark:text-red-400"
                           : item.type === "warning"
                             ? "text-amber-700 dark:text-amber-400"
-                            : "text-orange-700 dark:text-orange-400"
+                            : "text-primary dark:text-primary"
                       }`}
                     >
                       {item.title}
@@ -533,7 +533,7 @@ export const POvsGRNPage: React.FC = () => {
                         ? "text-red-600 dark:text-red-400"
                         : item.type === "warning"
                           ? "text-amber-600 dark:text-amber-400"
-                          : "text-orange-600 dark:text-orange-400"
+                          : "text-primary"
                     }`}
                   >
                     {item.action}

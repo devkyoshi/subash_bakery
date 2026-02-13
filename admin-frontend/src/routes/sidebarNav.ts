@@ -70,6 +70,7 @@ export const SIDEBAR_NAV: SidebarNavItem[] = [
     icon: FileText,
     submenu: [
       { label: "PO vs GRN", to: "/app/reports/po-vs-grn", icon: Boxes },
+      { label: "Reorder Status", to: "/app/reports/reorder-status", icon: Boxes },
     ],
   },
   {

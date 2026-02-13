@@ -14,6 +14,7 @@ import { OrdersPage } from "@/pages/dashboard/Orders";
 import { ReportsPage } from "@/pages/dashboard/Reports";
 
 import POvsGRNPage from "@/pages/reports/po-vs-grn";
+import ReorderStatusPage from "@/pages/reports/reorder-status";
 import { UsersPage } from "@/pages/users/Users";
 import { TransactionsPage } from "@/pages/dashboard/Transactions";
 import { AnalyticsPage } from "@/pages/dashboard/Analytics";
@@ -71,6 +72,7 @@ export function AppRoutes() {
         <Route path="dashboard" element={<DashboardPage />} />
         <Route path="reports" element={<ReportsPage />} />
         <Route path="reports/po-vs-grn" element={<POvsGRNPage />} />
+        <Route path="reports/reorder-status" element={<ReorderStatusPage />} />
         <Route path="orders" element={<OrdersPage />} />
         <Route path="calendar" element={<CalendarPage />} />
 
