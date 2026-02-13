@@ -52,8 +52,10 @@ func main() {
 			strings.HasPrefix(path, "/procurement") {
 			targetURL = cfg.ProcurementServiceURL
 		} else if strings.HasPrefix(path, "/organizations") {
-			// Check for procurement sub-resources under organizations
-			if strings.Contains(path, "/suppliers") ||
+			// Check for report sub-resources under organizations
+			if strings.Contains(path, "/reports") {
+				targetURL = cfg.ReportServiceURL
+			} else if strings.Contains(path, "/suppliers") ||
 				strings.Contains(path, "/purchase-orders") ||
 				strings.Contains(path, "/grns") {
 				targetURL = cfg.ProcurementServiceURL

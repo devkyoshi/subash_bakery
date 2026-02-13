@@ -61,6 +61,7 @@ services:
       PROCUREMENT_SERVICE_URL: http://procurement-service:8005
       NOTIFICATION_SERVICE_URL: http://notification-service:8007
       DASHBOARD_SERVICE_URL: http://dashboard-service:8008
+      REPORT_SERVICE_URL: http://report-service:8009
     ports:
       - "8080:8080"
     depends_on:
@@ -71,6 +72,7 @@ services:
       - procurement-service
       - notification-service
       - dashboard-service
+      - report-service
     networks:
       - erp-network
 
@@ -203,6 +205,24 @@ services:
       - "8008:8008"
     depends_on:
       - rabbitmq
+    networks:
+      - erp-network
+
+  # Report Service
+  report-service:
+    build:
+      context: .
+      dockerfile: ./services/report-service/Dockerfile
+    container_name: erp-report-service
+    restart: unless-stopped
+    environment:
+      PORT: 8009
+      MONGO_URI: mongodb://admin:admin123@mongodb:27017
+      JWT_SECRET: your-super-secret-jwt-key-change-in-production
+    ports:
+      - "8009:8009"
+    depends_on:
+      - mongodb
     networks:
       - erp-network
 
