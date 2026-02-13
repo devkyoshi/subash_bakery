@@ -15,16 +15,14 @@ import (
 )
 
 type ReportHandler struct {
-	povsGRNService    *service.POvsGRNService
-	stockLevelService *service.StockLevelService
-	exportService     *service.ExportService
+	povsGRNService *service.POvsGRNService
+	exportService  *service.ExportService
 }
 
-func NewReportHandler(povsGRNService *service.POvsGRNService, stockLevelService *service.StockLevelService, exportService *service.ExportService) *ReportHandler {
+func NewReportHandler(povsGRNService *service.POvsGRNService, exportService *service.ExportService) *ReportHandler {
 	return &ReportHandler{
-		povsGRNService:    povsGRNService,
-		stockLevelService: stockLevelService,
-		exportService:     exportService,
+		povsGRNService: povsGRNService,
+		exportService:  exportService,
 	}
 }
 
@@ -37,11 +35,6 @@ func (h *ReportHandler) RegisterRoutes(router *gin.RouterGroup, jwtManager *util
 	protected.GET("/organizations/:org_id/reports/po-vs-grn", h.GetPOvsGRNComparison)
 	protected.GET("/organizations/:org_id/reports/po-vs-grn/export/excel", h.ExportPOvsGRNExcel)
 	protected.GET("/organizations/:org_id/reports/po-vs-grn/export/pdf", h.ExportPOvsGRNPDF)
-
-	// Stock Level Reports
-	protected.GET("/organizations/:org_id/reports/stock-levels", h.GetStockLevelReport)
-	protected.GET("/organizations/:org_id/reports/stock-levels/export/excel", h.ExportStockLevelExcel)
-	protected.GET("/organizations/:org_id/reports/stock-levels/export/pdf", h.ExportStockLevelPDF)
 }
 
 // parseReportFilters extracts filter parameters from the request

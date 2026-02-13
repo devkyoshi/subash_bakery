@@ -82,49 +82,6 @@ class ReportService {
     );
     return response.data;
   }
-
-  // ============================================================
-  // Stock Level Report
-  // ============================================================
-
-  async getStockLevelReport(
-    orgId: string,
-    params?: StockLevelFilters & { page?: number; limit?: number }
-  ): Promise<PaginatedStockLevelResponse> {
-    const response = await axiosInstance.get<PaginatedStockLevelResponse>(
-      `/organizations/${orgId}/reports/stock-levels`,
-      { params }
-    );
-    return response.data;
-  }
-
-  async exportStockLevelExcel(
-    orgId: string,
-    filters?: StockLevelFilters
-  ): Promise<Blob> {
-    const response = await axiosInstance.get(
-      `/organizations/${orgId}/reports/stock-levels/export/excel`,
-      {
-        params: filters,
-        responseType: "blob",
-      }
-    );
-    return response.data;
-  }
-
-  async exportStockLevelPDF(
-    orgId: string,
-    filters?: StockLevelFilters
-  ): Promise<Blob> {
-    const response = await axiosInstance.get(
-      `/organizations/${orgId}/reports/stock-levels/export/pdf`,
-      {
-        params: filters,
-        responseType: "blob",
-      }
-    );
-    return response.data;
-  }
 }
 
 export const reportService = new ReportService();

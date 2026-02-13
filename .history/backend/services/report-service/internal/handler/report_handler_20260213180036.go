@@ -37,11 +37,6 @@ func (h *ReportHandler) RegisterRoutes(router *gin.RouterGroup, jwtManager *util
 	protected.GET("/organizations/:org_id/reports/po-vs-grn", h.GetPOvsGRNComparison)
 	protected.GET("/organizations/:org_id/reports/po-vs-grn/export/excel", h.ExportPOvsGRNExcel)
 	protected.GET("/organizations/:org_id/reports/po-vs-grn/export/pdf", h.ExportPOvsGRNPDF)
-
-	// Stock Level Reports
-	protected.GET("/organizations/:org_id/reports/stock-levels", h.GetStockLevelReport)
-	protected.GET("/organizations/:org_id/reports/stock-levels/export/excel", h.ExportStockLevelExcel)
-	protected.GET("/organizations/:org_id/reports/stock-levels/export/pdf", h.ExportStockLevelPDF)
 }
 
 // parseReportFilters extracts filter parameters from the request

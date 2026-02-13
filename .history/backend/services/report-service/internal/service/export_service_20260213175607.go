@@ -720,10 +720,10 @@ func (s *ExportService) GenerateStockLevelPDF(
 	startX := float64(12)
 
 	type kpiCard struct {
-		label   string
-		value   string
-		sub     string
-		r, g, b int
+		label       string
+		value       string
+		sub         string
+		r, g, b     int
 	}
 	kpis := []kpiCard{
 		{"Total Items", fmt.Sprintf("%d", metrics.TotalProducts), "Products tracked", 55, 120, 200},

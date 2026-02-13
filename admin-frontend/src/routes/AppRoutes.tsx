@@ -49,6 +49,7 @@ import { StockAdjustmentsPage } from "@/pages/inventory/StockAdjustmentsPage";
 import { CreateStockAdjustmentPage } from "@/pages/inventory/CreateStockAdjustmentPage";
 import { StockAdjustmentDetailsPage } from "@/pages/inventory/StockAdjustmentDetailsPage";
 import { StockMovementsPage } from "@/pages/inventory/StockMovementsPage";
+import StockLevelReportPage from "@/pages/reports/stock-levels";
 
 export function AppRoutes() {
   return (
@@ -72,6 +73,7 @@ export function AppRoutes() {
         <Route path="dashboard" element={<DashboardPage />} />
         <Route path="reports" element={<ReportsPage />} />
         <Route path="reports/po-vs-grn" element={<POvsGRNPage />} />
+        <Route path="reports/stock-levels" element={<StockLevelReportPage />} />
         <Route path="reports/reorder-status" element={<ReorderStatusPage />} />
         <Route path="orders" element={<OrdersPage />} />
         <Route path="calendar" element={<CalendarPage />} />
