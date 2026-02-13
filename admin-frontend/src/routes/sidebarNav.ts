@@ -71,6 +71,7 @@ export const SIDEBAR_NAV: SidebarNavItem[] = [
     submenu: [
       { label: "PO vs GRN", to: "/app/reports/po-vs-grn", icon: Boxes },
       { label: "Reorder Status", to: "/app/reports/reorder-status", icon: Boxes },
+      { label: "Stock Levels", to: "/app/reports/stock-levels", icon: Boxes}
     ],
   },
   {

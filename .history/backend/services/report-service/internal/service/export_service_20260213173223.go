@@ -370,8 +370,8 @@ func (s *ExportService) GeneratePDF(
 	pdf.CellFormat(0, 10, "Detailed PO vs GRN Comparison", "", 1, "L", false, 0, "")
 	pdf.Ln(2)
 
-	// Table layout — total must fit within pageW - 24mm (12mm margins each side)
-	colWidths := []float64{22, 20, 34, 32, 20, 20, 22, 18, 22, 22, 20, 21}
+	// Table layout
+	colWidths := []float64{24, 22, 38, 36, 22, 22, 24, 20, 22, 22, 22, 24}
 	colHeaders := []string{"PO No", "Date", "Supplier", "Product", "PO Qty", "GRN Qty", "Variance", "Var%", "PO Value", "GRN Value", "Val Var", "Status"}
 
 	drawTableHeader := func() {

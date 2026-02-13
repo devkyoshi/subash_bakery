@@ -105,18 +105,18 @@ func (r *ApplicationRepository) Update(ctx context.Context, app *models.Applicat
 	// 	"version": app.Version - 1,
 	// }
 
-	// update := bson.M{
-	// 	"$set": app,
+	update := bson.M{
+		"$set": app,
+	}
+
+	// result, err := r.collection.UpdateOne(ctx, filter, update)
+	// if err != nil {
+	// 	return err
 	// }
 
-	// // result, err := r.collection.UpdateOne(ctx, filter, update)
-	// // if err != nil {
-	// // 	return err
-	// // }
-
-	// if result.MatchedCount == 0 {
-	// 	return mongo.ErrNoDocuments
-	// }
+	if result.MatchedCount == 0 {
+		return mongo.ErrNoDocuments
+	}
 
 	return nil
 }
