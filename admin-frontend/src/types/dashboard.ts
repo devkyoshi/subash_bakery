@@ -18,6 +18,9 @@ export type OrderItem = {
   id: string;
   customer: string;
   amount: string;
+  itemCount: number;
+  date: string;
+  mongoId?: string;
   status: "Pending" | "Processing" | "Shipped";
   flag: "red" | "orange" | "green";
 };
