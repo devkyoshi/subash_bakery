@@ -791,14 +791,40 @@ func (s *ProcurementService) GetDashboardStats(ctx context.Context, orgID primit
 
 	// Enrich with Supplier Names
 	enrichStart := time.Now()
+
+	// Collect supplier IDs
+	supplierIDs := make([]primitive.ObjectID, 0)
+	supplierIDMap := make(map[string]struct{})
 	for _, po := range pendingApprovals {
 		if !po.SupplierID.IsZero() {
-			supplier, err := s.supplierRepo.FindByID(ctx, po.SupplierID)
-			if err == nil && supplier != nil {
-				po.SupplierName = supplier.CompanyName
+			if _, exists := supplierIDMap[po.SupplierID.Hex()]; !exists {
+				supplierIDs = append(supplierIDs, po.SupplierID)
+				supplierIDMap[po.SupplierID.Hex()] = struct{}{}
 			}
 		}
 	}
+
+	// Fetch suppliers in batch
+	if len(supplierIDs) > 0 {
+		suppliers, err := s.supplierRepo.FindByIDs(ctx, supplierIDs)
+		if err != nil {
+			log.Printf("Warning: failed to fetch suppliers for dashboard stats: %v", err)
+		} else {
+			// Create map for easy lookup
+			suppliersMap := make(map[string]*models.Supplier)
+			for _, supplier := range suppliers {
+				suppliersMap[supplier.ID.Hex()] = supplier
+			}
+
+			// Assign names
+			for _, po := range pendingApprovals {
+				if supplier, ok := suppliersMap[po.SupplierID.Hex()]; ok {
+					po.SupplierName = supplier.CompanyName
+				}
+			}
+		}
+	}
+
 	log.Printf("GetDashboardStats: Supplier enrichment took %v", time.Since(enrichStart))
 
 	// Pending GRNs

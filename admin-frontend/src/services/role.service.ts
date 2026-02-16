@@ -22,6 +22,25 @@ class RoleService {
     return [];
   }
 
+  async getRoleById(roleId: string): Promise<Role> {
+    const response = await axiosInstance.get(`/roles/${roleId}`);
+    return response.data;
+  }
+
+  async createRole(role: Partial<Role>): Promise<Role> {
+    const response = await axiosInstance.post("/roles", role);
+    return response.data;
+  }
+
+  async updateRole(roleId: string, role: Partial<Role>): Promise<Role> {
+    const response = await axiosInstance.put(`/roles/${roleId}`, role);
+    return response.data;
+  }
+
+  async deleteRole(roleId: string): Promise<void> {
+    await axiosInstance.delete(`/roles/${roleId}`);
+  }
+
   async assignRole(userId: string, roleId: string): Promise<void> {
     await axiosInstance.post("/roles/assign", {
       user_id: userId,

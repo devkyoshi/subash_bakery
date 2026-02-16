@@ -104,6 +104,71 @@ func (h *RoleHandler) ListPermissions(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusOK, permissions, "Permissions retrieved successfully")
 }
 
+// GetRole retrieves a role by ID
+// @Summary Get role by ID
+// @Tags roles
+// @Produce json
+// @Param id path string true "Role ID"
+// @Success 200 {object} utils.Response
+// @Failure 404 {object} utils.Response
+// @Router /roles/{id} [get]
+func (h *RoleHandler) GetRole(c *gin.Context) {
+	roleID := c.Param("id")
+	if roleID == "" {
+		utils.ErrorResponse(c, http.StatusBadRequest, "INVALID_ID", "Role ID is required", nil)
+		return
+	}
+
+	role, err := h.roleService.GetRole(c.Request.Context(), roleID)
+	if err != nil {
+		utils.ErrorResponse(c, http.StatusNotFound, "NOT_FOUND", err.Error(), nil)
+		return
+	}
+
+	utils.SuccessResponse(c, http.StatusOK, role, "Role retrieved successfully")
+}
+
+// UpdateRole updates a role
+// @Summary Update role
+// @Tags roles
+// @Accept json
+// @Produce json
+// @Param id path string true "Role ID"
+// @Success 200 {object} utils.Response
+// @Router /roles/{id} [put]
+func (h *RoleHandler) UpdateRole(c *gin.Context) {
+	roleID := c.Param("id")
+	var req service.UpdateRoleRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", err.Error(), nil)
+		return
+	}
+
+	role, err := h.roleService.UpdateRole(c.Request.Context(), roleID, req)
+	if err != nil {
+		utils.ErrorResponse(c, http.StatusBadRequest, "UPDATE_FAILED", err.Error(), nil)
+		return
+	}
+
+	utils.SuccessResponse(c, http.StatusOK, role, "Role updated successfully")
+}
+
+// DeleteRole deletes a role
+// @Summary Delete role
+// @Tags roles
+// @Param id path string true "Role ID"
+// @Success 200 {object} utils.Response
+// @Router /roles/{id} [delete]
+func (h *RoleHandler) DeleteRole(c *gin.Context) {
+	roleID := c.Param("id")
+	if err := h.roleService.DeleteRole(c.Request.Context(), roleID); err != nil {
+		utils.ErrorResponse(c, http.StatusBadRequest, "DELETE_FAILED", err.Error(), nil)
+		return
+	}
+
+	utils.SuccessResponse(c, http.StatusOK, nil, "Role deleted successfully")
+}
+
 // RegisterRoutes registers role routes
 func (h *RoleHandler) RegisterRoutes(router *gin.RouterGroup, jwtManager *utils.JWTManager) {
 	protected := router.Group("")
@@ -111,6 +176,9 @@ func (h *RoleHandler) RegisterRoutes(router *gin.RouterGroup, jwtManager *utils.
 	{
 		protected.POST("/roles", h.CreateRole)
 		protected.GET("/roles", h.ListRoles)
+		protected.GET("/roles/:id", h.GetRole)
+		protected.PUT("/roles/:id", h.UpdateRole)
+		protected.DELETE("/roles/:id", h.DeleteRole)
 		protected.POST("/roles/assign", h.AssignRole)
 		protected.GET("/permissions", h.ListPermissions)
 	}

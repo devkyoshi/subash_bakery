@@ -2,11 +2,13 @@ package handlers
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/yourusername/erp-system/services/auth-service/internal/service"
 	"github.com/yourusername/erp-system/shared/middleware"
 	"github.com/yourusername/erp-system/shared/utils"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type AuthHandler struct {
@@ -235,6 +237,118 @@ func (h *AuthHandler) UpdateUserOrganization(c *gin.Context) {
 	utils.SuccessResponse(c, http.StatusOK, user, "User organization updated successfully")
 }
 
+// ListUsers retrieves all users for an organization
+// @Summary List users
+// @Tags users
+// @Produce json
+// @Param organization_id query string true "Organization ID"
+// @Success 200 {object} utils.Response
+// @Router /users [get]
+func (h *AuthHandler) ListUsers(c *gin.Context) {
+	orgID := c.Query("organization_id")
+	if orgID == "" {
+		utils.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", "Organization ID is required", nil)
+		return
+	}
+
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+
+	filters := make(map[string]interface{})
+	if search := c.Query("search"); search != "" {
+		filters["search"] = search
+	}
+	if roleID := c.Query("role_id"); roleID != "" {
+		if rid, err := primitive.ObjectIDFromHex(roleID); err == nil {
+			filters["role_id"] = rid
+		}
+	}
+	if status := c.Query("status"); status != "" {
+		filters["status"] = status
+	}
+
+	users, total, err := h.authService.ListUsers(c.Request.Context(), orgID, filters, page, limit)
+	if err != nil {
+		utils.ErrorResponse(c, http.StatusInternalServerError, "FETCH_FAILED", err.Error(), nil)
+		return
+	}
+
+	utils.PaginatedResponse(c, users, page, limit, total)
+}
+
+// CreateUser creates a new user (admin)
+// @Summary Create user
+// @Tags users
+// @Accept json
+// @Produce json
+// @Success 201 {object} utils.Response
+// @Router /users [post]
+func (h *AuthHandler) CreateUser(c *gin.Context) {
+	var req service.RegisterRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", err.Error(), nil)
+		return
+	}
+
+	if !utils.IsValidEmail(req.Email) {
+		utils.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", "Invalid email format", nil)
+		return
+	}
+	if !utils.IsValidPassword(req.Password) {
+		utils.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", "Password must be at least 8 characters", nil)
+		return
+	}
+
+	user, err := h.authService.CreateUser(c.Request.Context(), req)
+	if err != nil {
+		utils.ErrorResponse(c, http.StatusBadRequest, "CREATE_FAILED", err.Error(), nil)
+		return
+	}
+
+	utils.SuccessResponse(c, http.StatusCreated, user, "User created successfully")
+}
+
+// UpdateUser updates a user
+// @Summary Update user
+// @Tags users
+// @Accept json
+// @Produce json
+// @Param id path string true "User ID"
+// @Success 200 {object} utils.Response
+// @Router /users/{id} [put]
+func (h *AuthHandler) UpdateUser(c *gin.Context) {
+	userID := c.Param("id")
+	var req service.UpdateUserRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.ErrorResponse(c, http.StatusBadRequest, "VALIDATION_ERROR", err.Error(), nil)
+		return
+	}
+
+	user, err := h.authService.UpdateUser(c.Request.Context(), userID, req)
+	if err != nil {
+		utils.ErrorResponse(c, http.StatusBadRequest, "UPDATE_FAILED", err.Error(), nil)
+		return
+	}
+
+	utils.SuccessResponse(c, http.StatusOK, user, "User updated successfully")
+}
+
+// DeleteUser deletes a user
+// @Summary Delete user
+// @Tags users
+// @Param id path string true "User ID"
+// @Success 200 {object} utils.Response
+// @Router /users/{id} [delete]
+func (h *AuthHandler) DeleteUser(c *gin.Context) {
+	userID := c.Param("id")
+	if err := h.authService.DeleteUser(c.Request.Context(), userID); err != nil {
+		utils.ErrorResponse(c, http.StatusBadRequest, "DELETE_FAILED", err.Error(), nil)
+		return
+	}
+
+	utils.SuccessResponse(c, http.StatusOK, nil, "User deleted successfully")
+}
+
 // RegisterRoutes registers all auth routes
 func (h *AuthHandler) RegisterRoutes(router *gin.RouterGroup, jwtManager *utils.JWTManager) {
 	auth := router.Group("/auth")
@@ -256,6 +370,16 @@ func (h *AuthHandler) RegisterRoutes(router *gin.RouterGroup, jwtManager *utils.
 			protected.GET("/me", h.GetMe)
 			protected.PUT("/users/:id/organization", h.UpdateUserOrganization)
 		}
+	}
+
+	// User Management Routes (Protected)
+	users := router.Group("/users")
+	users.Use(middleware.AuthMiddleware(jwtManager))
+	{
+		users.GET("", h.ListUsers)
+		users.POST("", h.CreateUser)
+		users.PUT("/:id", h.UpdateUser)
+		users.DELETE("/:id", h.DeleteUser)
 	}
 }
 

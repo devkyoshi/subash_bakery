@@ -56,9 +56,21 @@ func main() {
 	inventoryClient := client.NewInventoryClient(cfg)
 
 	// Initialize RabbitMQ
-	rabbitClient, err := rabbitmq.NewRabbitMQClient(cfg.RabbitMQURL)
-	if err != nil {
-		log.Printf("Failed to connect to RabbitMQ: %v", err)
+	var rabbitClient *rabbitmq.RabbitMQClient
+	var rabbitErr error
+	for i := 0; i < 30; i++ {
+		rabbitClient, rabbitErr = rabbitmq.NewRabbitMQClient(cfg.RabbitMQURL)
+		if rabbitErr == nil {
+			log.Println("Connected to RabbitMQ successfully")
+			break
+		}
+		log.Printf("Failed to connect to RabbitMQ (attempt %d/30): %v", i+1, rabbitErr)
+		time.Sleep(2 * time.Second)
+	}
+
+	if rabbitErr != nil {
+		log.Printf("Warning: Could not connect to RabbitMQ after retries: %v", rabbitErr)
+		// We continue without RabbitMQ, but RPC and Event publishing will fail
 	} else {
 		defer rabbitClient.Close()
 	}

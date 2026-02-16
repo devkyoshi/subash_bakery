@@ -265,14 +265,14 @@ export function UsersPage() {
 
           {/* Right Side - Action Buttons */}
           <div className="flex gap-2">
-            {/* Export Button - Secondary with outline */}
+            {/* Export Button - Secondary with outline
             <Button
               variant="outline"
               className="h-10 bg-background hover:bg-muted/50"
             >
               <Download className="mr-2 h-4 w-4" />
               Export
-            </Button>
+            </Button> */}
 
             {/* Add New User Button - Primary with brand color */}
             <Button
@@ -333,7 +333,9 @@ export function UsersPage() {
                   </TableCell>
                   <TableCell>{user.email}</TableCell>
                   <TableCell>
-                    <Badge variant="outline">{getRoleName(user.role_id)}</Badge>
+                    <Badge variant="outline">
+                      {user.role?.display_name || getRoleName(user.role_id)}
+                    </Badge>
                   </TableCell>
                   <TableCell>
                     <Badge

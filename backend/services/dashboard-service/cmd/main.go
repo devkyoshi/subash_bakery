@@ -21,21 +21,24 @@ func main() {
 	cfg := config.LoadConfig()
 
 	// Initialize RabbitMQ
-	// Retry connection
 	var rabbitClient *rabbitmq.RabbitMQClient
 	var err error
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 30; i++ {
 		rabbitClient, err = rabbitmq.NewRabbitMQClient(cfg.RabbitMQURL)
 		if err == nil {
+			log.Println("Connected to RabbitMQ successfully")
 			break
 		}
-		log.Printf("Failed to connect to RabbitMQ, retrying in 5s: %v", err)
-		time.Sleep(5 * time.Second)
+		log.Printf("Failed to connect to RabbitMQ (attempt %d/30): %v", i+1, err)
+		time.Sleep(2 * time.Second)
 	}
+
 	if err != nil {
-		log.Fatalf("Failed to connect to RabbitMQ: %v", err)
+		log.Printf("Warning: Could not connect to RabbitMQ after retries: %v", err)
+		// We continue without RabbitMQ, but RPC will fail
+	} else {
+		defer rabbitClient.Close()
 	}
-	defer rabbitClient.Close()
 
 	// Initialize MongoDB
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)

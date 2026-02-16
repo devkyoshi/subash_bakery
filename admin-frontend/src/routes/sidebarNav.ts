@@ -16,6 +16,7 @@ import {
   Ruler,
   ArrowRightLeft,
   PackageCheck,
+  ShieldCheck,
 } from "lucide-react";
 
 export type SidebarNavItem = {
@@ -28,6 +29,15 @@ export type SidebarNavItem = {
 
 export const SIDEBAR_NAV: SidebarNavItem[] = [
   { label: "Dashboard", to: "/app/dashboard", icon: LayoutDashboard },
+  {
+    label: "Users",
+    to: "/app/users",
+    icon: Users,
+    submenu: [
+      { label: "All Users", to: "/app/users/all", icon: Users },
+      { label: "Roles", to: "/app/users/roles", icon: ShieldCheck },
+    ],
+  },
   { label: "Products", to: "/app/products", icon: Package },
   { label: "Categories", to: "/app/categories", icon: Layers },
   { label: "Brands", to: "/app/brands", icon: Tag },
@@ -70,8 +80,12 @@ export const SIDEBAR_NAV: SidebarNavItem[] = [
     icon: FileText,
     submenu: [
       { label: "PO vs GRN", to: "/app/reports/po-vs-grn", icon: Boxes },
-      { label: "Reorder Status", to: "/app/reports/reorder-status", icon: Boxes },
-      { label: "Stock Levels", to: "/app/reports/stock-levels", icon: Boxes}
+      {
+        label: "Reorder Status",
+        to: "/app/reports/reorder-status",
+        icon: Boxes,
+      },
+      { label: "Stock Levels", to: "/app/reports/stock-levels", icon: Boxes },
     ],
   },
   {

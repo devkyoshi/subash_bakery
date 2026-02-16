@@ -78,7 +78,7 @@ export function AppRoutes() {
         <Route path="orders" element={<OrdersPage />} />
         <Route path="calendar" element={<CalendarPage />} />
 
-        <Route path="users" element={<UsersPage />} />
+        <Route path="users/all" element={<UsersPage />} />
         <Route path="users/roles" element={<UserRoleList />} />
         <Route path="users/roles/new" element={<UserRoleFormPage />} />
         <Route path="users/roles/:id/edit" element={<UserRoleFormPage />} />

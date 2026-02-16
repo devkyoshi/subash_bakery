@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/yourusername/erp-system/shared/models"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
-	"github.com/yourusername/erp-system/shared/models"
 )
 
 type OrganizationRepository struct {
@@ -107,6 +107,31 @@ func (r *OrganizationRepository) List(ctx context.Context, page, limit int, stat
 	}
 
 	return orgs, total, nil
+}
+
+// ListOptions returns a list of organizations with only ID and Name
+func (r *OrganizationRepository) ListOptions(ctx context.Context) ([]*models.OrganizationOption, error) {
+	filter := bson.M{
+		"deleted_at": nil,
+		"is_active":  true,
+	}
+
+	opts := options.Find().
+		SetProjection(bson.M{"_id": 1, "name": 1}).
+		SetSort(bson.D{{Key: "name", Value: 1}})
+
+	cursor, err := r.collection.Find(ctx, filter, opts)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find organizations: %w", err)
+	}
+	defer cursor.Close(ctx)
+
+	var options []*models.OrganizationOption
+	if err := cursor.All(ctx, &options); err != nil {
+		return nil, fmt.Errorf("failed to decode organization options: %w", err)
+	}
+
+	return options, nil
 }
 
 // Update updates an organization

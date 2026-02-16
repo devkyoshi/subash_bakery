@@ -42,18 +42,28 @@ func main() {
 	log.Println("Connected to MongoDB successfully")
 	db := mongoClient.Database(cfg.DBName)
 
-	// Create indexes
+	// Create indexes (commented out for now)
 	// if err := createIndexes(db); err != nil {
 	// 	log.Fatalf("Failed to create indexes: %v", err)
 	// }
 
 	// Initialize RabbitMQ
-	rabbitClient, err := rabbitmq.NewRabbitMQClient(cfg.RabbitMQURL)
-	if err != nil {
-		log.Fatalf("Failed to connect to RabbitMQ: %v", err)
+	var rabbitClient *rabbitmq.RabbitMQClient
+	var rabbitErr error
+	for i := 0; i < 30; i++ {
+		rabbitClient, rabbitErr = rabbitmq.NewRabbitMQClient(cfg.RabbitMQURL)
+		if rabbitErr == nil {
+			log.Println("Connected to RabbitMQ successfully")
+			break
+		}
+		log.Printf("Failed to connect to RabbitMQ (attempt %d/30): %v", i+1, rabbitErr)
+		time.Sleep(2 * time.Second)
+	}
+
+	if rabbitErr != nil {
+		log.Fatalf("Failed to connect to RabbitMQ after retries: %v", rabbitErr)
 	}
 	defer rabbitClient.Close()
-	log.Println("Connected to RabbitMQ successfully")
 
 	// Initialize repositories
 	stockLevelRepo := repository.NewStockLevelRepository(db)

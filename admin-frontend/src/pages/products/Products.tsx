@@ -259,13 +259,13 @@ export function ProductsPage() {
           {/* Right Side - Action Buttons */}
           <div className="flex gap-2">
             {/* Export Button */}
-            <Button
+            {/* <Button
               variant="outline"
               className="h-10 bg-background hover:bg-muted/50"
             >
               <Download className="mr-2 h-4 w-4" />
               Export
-            </Button>
+            </Button> */}
 
             {/* Add New Product Button */}
             <Button

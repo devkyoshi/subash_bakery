@@ -53,6 +53,26 @@ func (r *SupplierRepository) FindByID(ctx context.Context, id primitive.ObjectID
 	return &supplier, nil
 }
 
+func (r *SupplierRepository) FindByIDs(ctx context.Context, ids []primitive.ObjectID) ([]*models.Supplier, error) {
+	filter := bson.M{
+		"_id":        bson.M{"$in": ids},
+		"deleted_at": nil,
+	}
+
+	cursor, err := r.collection.Find(ctx, filter)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find suppliers: %w", err)
+	}
+	defer cursor.Close(ctx)
+
+	var suppliers []*models.Supplier
+	if err := cursor.All(ctx, &suppliers); err != nil {
+		return nil, fmt.Errorf("failed to decode suppliers: %w", err)
+	}
+
+	return suppliers, nil
+}
+
 func (r *SupplierRepository) FindByCode(ctx context.Context, orgID primitive.ObjectID, code string) (*models.Supplier, error) {
 	var supplier models.Supplier
 	filter := bson.M{

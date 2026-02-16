@@ -119,6 +119,11 @@ func (s *OrganizationService) ListOrganizations(ctx context.Context, page, limit
 	return s.orgRepo.List(ctx, page, limit, status)
 }
 
+// GetOrganizationOptions returns a list of organizations with minimal details (ID, Name) for dropdowns
+func (s *OrganizationService) GetOrganizationOptions(ctx context.Context) ([]*models.OrganizationOption, error) {
+	return s.orgRepo.ListOptions(ctx)
+}
+
 // UpdateOrganization updates an organization
 func (s *OrganizationService) UpdateOrganization(ctx context.Context, id primitive.ObjectID, req UpdateOrganizationRequest, updatedBy primitive.ObjectID) (*models.Organization, error) {
 	org, err := s.orgRepo.FindByID(ctx, id)

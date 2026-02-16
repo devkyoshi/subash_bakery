@@ -69,9 +69,9 @@ func main() {
 				// Default to Org Service for other /organizations routes
 				targetURL = cfg.OrgServiceURL
 			}
-		} else if strings.HasPrefix(path, "/auth") {
+		} else if strings.HasPrefix(path, "/auth") || strings.HasPrefix(path, "/users") || strings.HasPrefix(path, "/roles") || strings.HasPrefix(path, "/permissions") {
 			targetURL = cfg.AuthServiceURL
-		} else if strings.HasPrefix(path, "/companies") || strings.HasPrefix(path, "/locations") || strings.HasPrefix(path, "/users") {
+		} else if strings.HasPrefix(path, "/companies") || strings.HasPrefix(path, "/locations") {
 			targetURL = cfg.OrgServiceURL
 		} else if strings.Contains(path, "/stock") ||
 			strings.HasPrefix(path, "/inventory") ||

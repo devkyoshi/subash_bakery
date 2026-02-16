@@ -53,7 +53,7 @@ func (s *AggregationService) GetDashboardOverview(ctx context.Context, orgID pri
 	go func() {
 		defer wg.Done()
 		// Timeout for this specific request
-		timeoutCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+		timeoutCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 		defer cancel()
 
 		resp, err := s.rabbitClient.RPCRequest(timeoutCtx, "inventory.dashboard.stats", rpcReq)
@@ -73,7 +73,7 @@ func (s *AggregationService) GetDashboardOverview(ctx context.Context, orgID pri
 	go func() {
 		defer wg.Done()
 		// Timeout for this specific request
-		timeoutCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+		timeoutCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 		defer cancel()
 
 		resp, err := s.rabbitClient.RPCRequest(timeoutCtx, "procurement.dashboard.stats", rpcReq)
