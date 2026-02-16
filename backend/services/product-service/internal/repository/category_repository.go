@@ -395,3 +395,12 @@ func (r *CategoryRepository) DeleteMultiple(ctx context.Context, ids []primitive
 	_, err := r.collection.UpdateMany(ctx, filter, update)
 	return err
 }
+
+// Count counts total categories for an organization
+func (r *CategoryRepository) Count(ctx context.Context, orgID primitive.ObjectID) (int64, error) {
+	filter := bson.M{
+		"organization_id": orgID,
+		"deleted_at":      nil,
+	}
+	return r.collection.CountDocuments(ctx, filter)
+}

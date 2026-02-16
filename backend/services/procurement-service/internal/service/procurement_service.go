@@ -778,68 +778,63 @@ func (s *ProcurementService) generateGRNNumber(orgID primitive.ObjectID) string 
 	return fmt.Sprintf("GRN-%06d", timestamp%1000000)
 }
 
+// GetDashboardStats retrieves dashboard statistics
 func (s *ProcurementService) GetDashboardStats(ctx context.Context, orgID primitive.ObjectID) (map[string]interface{}, error) {
 	start := time.Now()
 	log.Printf("GetDashboardStats started for OrgID: %s", orgID.Hex())
 
-	// Pending POs
-	pendingPOCount, pendingApprovals, err := s.poRepo.GetDashboardStats(ctx, orgID)
+	pendingCount, totalPOs, pendingApprovals, err := s.poRepo.GetDashboardStats(ctx, orgID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get PO stats: %w", err)
+		return nil, err
 	}
 	log.Printf("GetDashboardStats: PO stats fetched in %v", time.Since(start))
 
 	// Enrich with Supplier Names
 	enrichStart := time.Now()
+	enrichmentMap := make(map[string]string)
 
-	// Collect supplier IDs
-	supplierIDs := make([]primitive.ObjectID, 0)
-	supplierIDMap := make(map[string]struct{})
-	for _, po := range pendingApprovals {
-		if !po.SupplierID.IsZero() {
-			if _, exists := supplierIDMap[po.SupplierID.Hex()]; !exists {
-				supplierIDs = append(supplierIDs, po.SupplierID)
-				supplierIDMap[po.SupplierID.Hex()] = struct{}{}
+	if len(pendingApprovals) > 0 {
+		supplierIDs := make([]primitive.ObjectID, 0)
+		for _, po := range pendingApprovals {
+			supplierIDs = append(supplierIDs, po.SupplierID)
+		}
+
+		suppliers, err := s.supplierRepo.FindByIDs(ctx, supplierIDs)
+		if err != nil {
+			log.Printf("Warning: Failed to fetch suppliers for dashboard stats: %v", err)
+		} else {
+			for _, supplier := range suppliers {
+				enrichmentMap[supplier.ID.Hex()] = supplier.CompanyName
 			}
 		}
 	}
 
-	// Fetch suppliers in batch
-	if len(supplierIDs) > 0 {
-		suppliers, err := s.supplierRepo.FindByIDs(ctx, supplierIDs)
-		if err != nil {
-			log.Printf("Warning: failed to fetch suppliers for dashboard stats: %v", err)
-		} else {
-			// Create map for easy lookup
-			suppliersMap := make(map[string]*models.Supplier)
-			for _, supplier := range suppliers {
-				suppliersMap[supplier.ID.Hex()] = supplier
-			}
-
-			// Assign names
-			for _, po := range pendingApprovals {
-				if supplier, ok := suppliersMap[po.SupplierID.Hex()]; ok {
-					po.SupplierName = supplier.CompanyName
-				}
-			}
+	// Flatten for JSON response
+	approvals := make([]map[string]interface{}, 0)
+	for _, po := range pendingApprovals {
+		supplierName := "Unknown Supplier"
+		if name, ok := enrichmentMap[po.SupplierID.Hex()]; ok {
+			supplierName = name
 		}
+
+		approvals = append(approvals, map[string]interface{}{
+			"id":            po.ID.Hex(),
+			"po_number":     po.PONumber,
+			"supplier_id":   po.SupplierID.Hex(),
+			"supplier_name": supplierName,
+			"total_amount":  po.TotalAmount,
+			"items":         po.Items,
+			"order_date":    po.OrderDate,
+			"status":        po.Status,
+		})
 	}
 
 	log.Printf("GetDashboardStats: Supplier enrichment took %v", time.Since(enrichStart))
 
-	// Pending GRNs
-	grnStart := time.Now()
-	pendingGRNCount, err := s.grnRepo.GetPendingCount(ctx, orgID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get GRN stats: %w", err)
-	}
-	log.Printf("GetDashboardStats: GRN stats fetched in %v", time.Since(grnStart))
-
-	log.Printf("GetDashboardStats completed in %v", time.Since(start))
-
 	return map[string]interface{}{
-		"pending_po_count":  pendingPOCount,
-		"pending_grn_count": pendingGRNCount,
-		"pending_approvals": pendingApprovals,
+		"pending_po_count":  pendingCount,
+		"total_pos":         totalPOs,
+		"pending_grn_count": 0, // Placeholder
+		"pending_approvals": approvals,
 	}, nil
 }

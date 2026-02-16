@@ -270,3 +270,12 @@ func (r *ProductRepository) CountByBrand(ctx context.Context, brandID primitive.
 
 	return r.collection.CountDocuments(ctx, filter)
 }
+
+// Count counts total products for an organization
+func (r *ProductRepository) Count(ctx context.Context, orgID primitive.ObjectID) (int64, error) {
+	filter := bson.M{
+		"organization_id": orgID,
+		"deleted_at":      nil,
+	}
+	return r.collection.CountDocuments(ctx, filter)
+}

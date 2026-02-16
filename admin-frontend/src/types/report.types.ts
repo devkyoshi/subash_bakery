@@ -123,3 +123,49 @@ export interface StockLevelFilters {
   stock_status?: string;
   search?: string;
 }
+
+// ============================================================
+// Reorder Status Report Types
+// ============================================================
+
+export interface ReorderItem {
+  id: string;
+  name: string;
+  unit: string;
+  priority: "CRITICAL" | "WARNING" | "NORMAL";
+  currentStock: number;
+  minLevel: number;
+  remainingDays: number;
+  pending: string;
+  sugQty: number;
+  leadTime: string;
+}
+
+export interface ConsumptionRow {
+  category: string;
+  avgDaily: string;
+  trend: string;
+  trendDir: "up" | "down" | "neutral";
+  forecast: string;
+}
+
+export interface ReorderMetrics {
+  critical_count: number;
+  warning_count: number;
+  normal_count: number;
+}
+
+export interface ReorderStatusReportResponse {
+  metrics: ReorderMetrics;
+  items: ReorderItem[];
+  consumption_data: ConsumptionRow[];
+  total_items: number;
+}
+
+export interface ReorderStatusFilters {
+  category_id?: string;
+  location_id?: string;
+  priority?: string;
+  search?: string;
+  include_pending?: boolean;
+}

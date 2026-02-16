@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import {
   Download,
   Mail,
@@ -17,6 +17,8 @@ import {
   Clock,
   ArrowRight,
   Search,
+  Loader2,
+  Package,
 } from "lucide-react";
 import { format } from "date-fns";
 import {
@@ -46,78 +48,129 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
+import { useToast } from "@/hooks/use-toast";
+import reportService from "@/services/report.service";
+import { categoryService } from "@/services/category.service";
+import { locationService } from "@/services/location.service";
+import type {
+  ReorderItem,
+  ConsumptionRow,
+  ReorderMetrics,
+  ReorderStatusFilters,
+} from "@/types/report.types";
+import type { Category } from "@/types/category.types";
 
-// Mock Data
-const REORDER_ITEMS = [
-  {
-    id: "FLR-001",
-    name: "All-purpose Flour",
-    unit: "KG",
-    priority: "CRITICAL",
-    currentStock: 45,
-    minLevel: 100,
-    remainingDays: 3,
-    pending: "200 KG",
-    sugQty: 500,
-    leadTime: "5 Days",
-  },
-  {
-    id: "SUG-042",
-    name: "Granulated Sugar",
-    unit: "KG",
-    priority: "WARNING",
-    currentStock: 120,
-    minLevel: 150,
-    remainingDays: 8,
-    pending: "—",
-    sugQty: 300,
-    leadTime: "3 Days",
-  },
-  {
-    id: "YST-099",
-    name: "Dry Yeast (Active)",
-    unit: "PKT",
-    priority: "NORMAL",
-    currentStock: 15,
-    minLevel: 10,
-    remainingDays: 25,
-    pending: "—",
-    sugQty: 20,
-    leadTime: "7 Days",
-  },
-];
-
-const CONSUMPTION_DATA = [
-  {
-    category: "Dry Goods",
-    avgDaily: "142.5 KG",
-    trend: "+ 12%",
-    trendDir: "up",
-    forecast: "4,275 KG",
-  },
-  {
-    category: "Dairy",
-    avgDaily: "88.2 L",
-    trend: "-0.5%",
-    trendDir: "neutral",
-    forecast: "2,646 L",
-  },
-  {
-    category: "Fermentation",
-    avgDaily: "15.8 PKT",
-    trend: "↓ 4%",
-    trendDir: "down",
-    forecast: "474 PKT",
-  },
-];
-
-const AUTO_REQUISITIONS = [
-  { id: "REQ-2023-089", vendor: "Global Grains Co.", items: "3 Items" },
-  { id: "REQ-2023-090", vendor: "Dairy Fresh Ltd.", items: "5 Items" },
-  { id: "REQ-2023-091", vendor: "Sweetener Hub", items: "1 Item" },
-];
+interface LocationOption {
+  id: string;
+  name: string;
+}
 
 export const ReorderStatusPage: React.FC = () => {
+  const { toast } = useToast();
+  const orgId = localStorage.getItem("organizationId") || "";
+
+  // Data state
+  const [items, setItems] = useState<ReorderItem[]>([]);
+  const [metrics, setMetrics] = useState<ReorderMetrics | null>(null);
+  const [consumptionData, setConsumptionData] = useState<ConsumptionRow[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  // Pagination
+  const [page, setPage] = useState(1);
+  const [limit] = useState(20);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+
+  // Filters
+  const [search, setSearch] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [locationFilter, setLocationFilter] = useState("all");
+  const [priorityFilter, setPriorityFilter] = useState("all");
+  const [includePending, setIncludePending] = useState(false);
+
+  // Filter options
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [locations, setLocations] = useState<LocationOption[]>([]);
+
+  // Load filter options
+  useEffect(() => {
+    if (!orgId) return;
+
+    const loadFilterOptions = async () => {
+      try {
+        const [catResponse, locResponse] = await Promise.all([
+          categoryService.getCategories({
+            organization_id: orgId,
+            limit: 100,
+            page: 1,
+          }),
+          locationService.getOrganizationLocations(orgId, { limit: 100 }),
+        ]);
+
+        if (catResponse?.data) {
+          setCategories(catResponse.data);
+        }
+
+        if (Array.isArray(locResponse)) {
+          setLocations(
+            locResponse.map((l: any) => ({ id: l.id || l._id, name: l.name })),
+          );
+        }
+      } catch (err) {
+        console.error("Failed to load filter options:", err);
+      }
+    };
+
+    loadFilterOptions();
+  }, [orgId]);
+
+  // Load report data
+  const fetchReport = useCallback(async () => {
+    if (!orgId) return;
+    setLoading(true);
+
+    try {
+      const params: ReorderStatusFilters & { page?: number; limit?: number } = {
+        page,
+        limit,
+      };
+
+      if (categoryFilter !== "all") params.category_id = categoryFilter;
+      if (locationFilter !== "all") params.location_id = locationFilter;
+      if (priorityFilter !== "all") params.priority = priorityFilter;
+      if (search.trim()) params.search = search.trim();
+      if (includePending) params.include_pending = true;
+
+      const response = await reportService.getReorderStatusReport(orgId, params);
+      const reportData = response.data.data;
+
+      setItems(reportData.items || []);
+      setMetrics(reportData.metrics);
+      setConsumptionData(reportData.consumption_data || []);
+      setTotalItems(Number(response.data.pagination.total));
+      setTotalPages(response.data.pagination.total_pages);
+    } catch (err: any) {
+      toast({
+        title: "Error",
+        description:
+          err?.response?.data?.error?.message ||
+          "Failed to load reorder status report",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [orgId, page, limit, categoryFilter, locationFilter, priorityFilter, search, includePending, toast]);
+
+  useEffect(() => {
+    fetchReport();
+  }, [fetchReport]);
+
+  const handleApplyFilters = () => {
+    setPage(1);
+    fetchReport();
+  };
+
   return (
     <div className="space-y-6 pt-6 pb-12 w-full max-w-[1600px] mx-auto px-4 sm:px-6">
       {/* Header */}
@@ -151,13 +204,17 @@ export const ReorderStatusPage: React.FC = () => {
             <label className="text-xs font-medium text-muted-foreground">
               Location
             </label>
-            <Select defaultValue="main">
+            <Select value={locationFilter} onValueChange={setLocationFilter}>
               <SelectTrigger className="w-[200px] h-9">
-                <SelectValue placeholder="Location" />
+                <SelectValue placeholder="All Locations" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="main">Main Central Warehouse</SelectItem>
-                <SelectItem value="north">North Branch</SelectItem>
+                <SelectItem value="all">All Locations</SelectItem>
+                {locations.map((loc) => (
+                  <SelectItem key={loc.id} value={loc.id}>
+                    {loc.name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -166,14 +223,17 @@ export const ReorderStatusPage: React.FC = () => {
             <label className="text-xs font-medium text-muted-foreground">
               Category
             </label>
-            <Select defaultValue="all">
+            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
               <SelectTrigger className="w-[180px] h-9">
-                <SelectValue placeholder="Category" />
+                <SelectValue placeholder="All Categories" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Categories</SelectItem>
-                <SelectItem value="dry">Dry Goods</SelectItem>
-                <SelectItem value="dairy">Dairy</SelectItem>
+                {categories.map((cat) => (
+                  <SelectItem key={cat.id} value={cat.id}>
+                    {cat.name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -182,14 +242,15 @@ export const ReorderStatusPage: React.FC = () => {
             <label className="text-xs font-medium text-muted-foreground">
               Urgency Level
             </label>
-            <Select defaultValue="all">
+            <Select value={priorityFilter} onValueChange={setPriorityFilter}>
               <SelectTrigger className="w-[180px] h-9">
-                <SelectValue placeholder="Urgency" />
+                <SelectValue placeholder="All Statuses" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="critical">Critical</SelectItem>
-                <SelectItem value="warning">Warning</SelectItem>
+                <SelectItem value="CRITICAL">Critical</SelectItem>
+                <SelectItem value="WARNING">Warning</SelectItem>
+                <SelectItem value="NORMAL">Normal</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -201,6 +262,8 @@ export const ReorderStatusPage: React.FC = () => {
               <Switch
                 id="pending-orders"
                 className="data-[state=checked]:bg-primary"
+                checked={includePending}
+                onCheckedChange={setIncludePending}
               />
               <label
                 htmlFor="pending-orders"
@@ -209,7 +272,10 @@ export const ReorderStatusPage: React.FC = () => {
                 Include pending orders
               </label>
             </div>
-            <Button className="h-9 bg-primary hover:bg-primary/90 text-primary-foreground shadow">
+            <Button
+              className="h-9 bg-primary hover:bg-primary/90 text-primary-foreground shadow"
+              onClick={handleApplyFilters}
+            >
               Apply Filters
             </Button>
           </div>
@@ -217,61 +283,63 @@ export const ReorderStatusPage: React.FC = () => {
       </Card>
 
       {/* Metrics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* Critical Stock */}
-        <Card className="border shadow-none bg-card">
-          <CardContent className="p-4 flex justify-between items-start">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">
-                Critical stock
-              </p>
-              <div className="flex items-baseline gap-2 mt-1">
-                <span className="text-3xl font-bold text-foreground">12</span>
-                <span className="text-sm text-muted-foreground">Items</span>
+      {metrics && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Critical Stock */}
+          <Card className="border shadow-none bg-card">
+            <CardContent className="p-4 flex justify-between items-start">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">
+                  Critical stock
+                </p>
+                <div className="flex items-baseline gap-2 mt-1">
+                  <span className="text-3xl font-bold text-foreground">{metrics.critical_count}</span>
+                  <span className="text-sm text-muted-foreground">Items</span>
+                </div>
               </div>
-            </div>
-            <div className="h-5 w-5 rounded-full bg-red-100 flex items-center justify-center">
-              <AlertCircle className="h-4 w-4 text-red-600" />
-            </div>
-          </CardContent>
-        </Card>
+              <div className="h-5 w-5 rounded-full bg-red-100 flex items-center justify-center">
+                <AlertCircle className="h-4 w-4 text-red-600" />
+              </div>
+            </CardContent>
+          </Card>
 
-        {/* Warning Level */}
-        <Card className="border shadow-none bg-card">
-          <CardContent className="p-4 flex justify-between items-start">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">
-                Warning level
-              </p>
-              <div className="flex items-baseline gap-2 mt-1">
-                <span className="text-3xl font-bold text-foreground">28</span>
-                <span className="text-sm text-muted-foreground">Items</span>
+          {/* Warning Level */}
+          <Card className="border shadow-none bg-card">
+            <CardContent className="p-4 flex justify-between items-start">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">
+                  Warning level
+                </p>
+                <div className="flex items-baseline gap-2 mt-1">
+                  <span className="text-3xl font-bold text-foreground">{metrics.warning_count}</span>
+                  <span className="text-sm text-muted-foreground">Items</span>
+                </div>
               </div>
-            </div>
-            <div className="h-5 w-5 rounded-full bg-amber-100 flex items-center justify-center">
-              <AlertTriangle className="h-3 w-3 text-amber-600" />
-            </div>
-          </CardContent>
-        </Card>
+              <div className="h-5 w-5 rounded-full bg-amber-100 flex items-center justify-center">
+                <AlertTriangle className="h-3 w-3 text-amber-600" />
+              </div>
+            </CardContent>
+          </Card>
 
-        {/* Normal Stock */}
-        <Card className="border shadow-none bg-card">
-          <CardContent className="p-4 flex justify-between items-start">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">
-                Normal stock
-              </p>
-              <div className="flex items-baseline gap-2 mt-1">
-                <span className="text-3xl font-bold text-foreground">145</span>
-                <span className="text-sm text-muted-foreground">Items</span>
+          {/* Normal Stock */}
+          <Card className="border shadow-none bg-card">
+            <CardContent className="p-4 flex justify-between items-start">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">
+                  Normal stock
+                </p>
+                <div className="flex items-baseline gap-2 mt-1">
+                  <span className="text-3xl font-bold text-foreground">{metrics.normal_count}</span>
+                  <span className="text-sm text-muted-foreground">Items</span>
+                </div>
               </div>
-            </div>
-            <div className="h-5 w-5 rounded-full bg-green-100 flex items-center justify-center">
-              <CheckCircle2 className="h-4 w-4 text-green-600" />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+              <div className="h-5 w-5 rounded-full bg-green-100 flex items-center justify-center">
+                <CheckCircle2 className="h-4 w-4 text-green-600" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Reorder Requirements Table */}
       <Card className="border shadow-none bg-card">
@@ -281,105 +349,145 @@ export const ReorderStatusPage: React.FC = () => {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader className="bg-muted/50">
-              <TableRow>
-                <TableHead className="w-[100px] text-xs uppercase font-semibold text-muted-foreground">
-                  Priority
-                </TableHead>
-                <TableHead className="text-xs uppercase font-semibold text-muted-foreground">
-                  Item
-                </TableHead>
-                <TableHead className="text-xs uppercase font-semibold text-muted-foreground">
-                  Current / Reorder
-                </TableHead>
-                <TableHead className="text-xs uppercase font-semibold text-muted-foreground">
-                  Remaining
-                </TableHead>
-                <TableHead className="text-xs uppercase font-semibold text-muted-foreground">
-                  Pending
-                </TableHead>
-                <TableHead className="text-xs uppercase font-semibold text-muted-foreground">
-                  Sug. Qty
-                </TableHead>
-                <TableHead className="text-xs uppercase font-semibold text-muted-foreground">
-                  Lead Time
-                </TableHead>
-                <TableHead className="text-xs uppercase font-semibold text-muted-foreground text-right">
-                  Action
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {REORDER_ITEMS.map((item) => (
-                <TableRow key={item.id} className="hover:bg-muted/50">
-                  <TableCell>
-                    <Badge
-                      variant="outline"
-                      className={`
-                        border-0 px-2 py-0.5 text-xs font-semibold
-                        ${item.priority === "CRITICAL" ? "bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400" : ""}
-                        ${item.priority === "WARNING" ? "bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" : ""}
-                        ${item.priority === "NORMAL" ? "bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400" : ""}
-                      `}
-                    >
-                      {item.priority === "CRITICAL" && (
-                        <AlertCircle className="h-3 w-3 mr-1" />
-                      )}
-                      {item.priority === "WARNING" && (
-                        <AlertTriangle className="h-3 w-3 mr-1" />
-                      )}
-                      {item.priority === "NORMAL" && (
-                        <CheckCircle2 className="h-3 w-3 mr-1" />
-                      )}
-                      {item.priority}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="font-medium text-sm text-foreground">
-                      {item.name}
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      {item.id} • {item.unit}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div
-                      className={`font-bold text-sm ${item.priority === "CRITICAL" ? "text-red-600 dark:text-red-400" : item.priority === "WARNING" ? "text-amber-600 dark:text-amber-400" : "text-green-600 dark:text-green-400"}`}
-                    >
-                      {item.currentStock}
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      Level: {item.minLevel}
-                    </div>
-                  </TableCell>
-                  <TableCell
-                    className={`text-sm font-medium ${item.remainingDays <= 3 ? "text-red-600 dark:text-red-400" : item.remainingDays <= 7 ? "text-amber-600 dark:text-amber-400" : "text-green-600 dark:text-green-400"}`}
-                  >
-                    {item.remainingDays} Days{item.remainingDays > 20 && "+"}
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {item.pending}
-                  </TableCell>
-                  <TableCell className="text-sm font-medium text-primary">
-                    {item.sugQty}
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {item.leadTime}
-                  </TableCell>
-                  <TableCell className="text-right">
+          {loading ? (
+            <div className="flex items-center justify-center py-20">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : items.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
+              <Package className="h-10 w-10 mb-2 opacity-40" />
+              <p className="text-sm">No reorder items found</p>
+            </div>
+          ) : (
+            <>
+              <Table>
+                <TableHeader className="bg-muted/50">
+                  <TableRow>
+                    <TableHead className="w-[100px] text-xs uppercase font-semibold text-muted-foreground">
+                      Priority
+                    </TableHead>
+                    <TableHead className="text-xs uppercase font-semibold text-muted-foreground">
+                      Item
+                    </TableHead>
+                    <TableHead className="text-xs uppercase font-semibold text-muted-foreground">
+                      Current / Reorder
+                    </TableHead>
+                    <TableHead className="text-xs uppercase font-semibold text-muted-foreground">
+                      Remaining
+                    </TableHead>
+                    <TableHead className="text-xs uppercase font-semibold text-muted-foreground">
+                      Pending
+                    </TableHead>
+                    <TableHead className="text-xs uppercase font-semibold text-muted-foreground">
+                      Sug. Qty
+                    </TableHead>
+                    <TableHead className="text-xs uppercase font-semibold text-muted-foreground">
+                      Lead Time
+                    </TableHead>
+                    <TableHead className="text-xs uppercase font-semibold text-muted-foreground text-right">
+                      Action
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {items.map((item) => (
+                    <TableRow key={item.id} className="hover:bg-muted/50">
+                      <TableCell>
+                        <Badge
+                          variant="outline"
+                          className={`
+                            border-0 px-2 py-0.5 text-xs font-semibold
+                            ${item.priority === "CRITICAL" ? "bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400" : ""}
+                            ${item.priority === "WARNING" ? "bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" : ""}
+                            ${item.priority === "NORMAL" ? "bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400" : ""}
+                          `}
+                        >
+                          {item.priority === "CRITICAL" && (
+                            <AlertCircle className="h-3 w-3 mr-1" />
+                          )}
+                          {item.priority === "WARNING" && (
+                            <AlertTriangle className="h-3 w-3 mr-1" />
+                          )}
+                          {item.priority === "NORMAL" && (
+                            <CheckCircle2 className="h-3 w-3 mr-1" />
+                          )}
+                          {item.priority}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="font-medium text-sm text-foreground">
+                          {item.name}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {item.id} • {item.unit}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div
+                          className={`font-bold text-sm ${item.priority === "CRITICAL" ? "text-red-600 dark:text-red-400" : item.priority === "WARNING" ? "text-amber-600 dark:text-amber-400" : "text-green-600 dark:text-green-400"}`}
+                        >
+                          {item.currentStock}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          Level: {item.minLevel}
+                        </div>
+                      </TableCell>
+                      <TableCell
+                        className={`text-sm font-medium ${item.remainingDays <= 3 ? "text-red-600 dark:text-red-400" : item.remainingDays <= 7 ? "text-amber-600 dark:text-amber-400" : "text-green-600 dark:text-green-400"}`}
+                      >
+                        {item.remainingDays} Days{item.remainingDays > 20 && "+"}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {item.pending}
+                      </TableCell>
+                      <TableCell className="text-sm font-medium text-primary">
+                        {item.sugQty}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {item.leadTime}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          className="h-8 bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary"
+                        >
+                          + Create Requisition
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between px-4 py-3 border-t mt-2">
+                  <p className="text-xs text-muted-foreground">
+                    Page {page} of {totalPages} ({totalItems} items)
+                  </p>
+                  <div className="flex gap-2">
                     <Button
-                      variant="secondary"
+                      variant="outline"
                       size="sm"
-                      className="h-8 bg-primary/10 text-primary hover:bg-primary/20 hover:text-primary"
+                      disabled={page <= 1}
+                      onClick={() => setPage((p) => Math.max(1, p - 1))}
                     >
-                      + Create Requisition
+                      Previous
                     </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={page >= totalPages}
+                      onClick={() => setPage((p) => p + 1)}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
         </CardContent>
       </Card>
 
@@ -399,69 +507,75 @@ export const ReorderStatusPage: React.FC = () => {
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow className="border-b-0">
-                <TableHead className="text-xs font-semibold text-muted-foreground">
-                  Category
-                </TableHead>
-                <TableHead className="text-xs font-semibold text-muted-foreground">
-                  Avg. Daily Consumption
-                </TableHead>
-                <TableHead className="text-xs font-semibold text-muted-foreground">
-                  Trend (30D)
-                </TableHead>
-                <TableHead className="text-xs font-semibold text-muted-foreground text-right">
-                  Forecasted Monthly
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {CONSUMPTION_DATA.map((row, i) => (
-                <TableRow
-                  key={i}
-                  className="border-b border-gray-100 dark:border-gray-800 hover:bg-transparent"
-                >
-                  <TableCell className="font-medium text-sm text-foreground py-3">
-                    {row.category}
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground py-3">
-                    {row.avgDaily}
-                  </TableCell>
-                  <TableCell className="py-3">
-                    <span
-                      className={`text-xs font-medium flex items-center gap-1 ${
-                        row.trendDir === "up"
-                          ? "text-green-600 dark:text-green-400"
-                          : row.trendDir === "down"
-                            ? "text-red-600 dark:text-red-400"
-                            : "text-muted-foreground"
-                      }`}
-                    >
-                      {row.trendDir === "up" && (
-                        <ArrowUpRight className="h-3 w-3" />
-                      )}
-                      {row.trendDir === "down" && (
-                        <ArrowDownRight className="h-3 w-3" />
-                      )}
-                      {row.trendDir === "neutral" && (
-                        <ArrowRight className="h-3 w-3" />
-                      )}
-                      {row.trend}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-sm font-bold text-foreground text-right py-3">
-                    {row.forecast}
-                  </TableCell>
+          {consumptionData.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+              <p className="text-sm">No consumption data available</p>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow className="border-b-0">
+                  <TableHead className="text-xs font-semibold text-muted-foreground">
+                    Category
+                  </TableHead>
+                  <TableHead className="text-xs font-semibold text-muted-foreground">
+                    Avg. Daily Consumption
+                  </TableHead>
+                  <TableHead className="text-xs font-semibold text-muted-foreground">
+                    Trend (30D)
+                  </TableHead>
+                  <TableHead className="text-xs font-semibold text-muted-foreground text-right">
+                    Forecasted Monthly
+                  </TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {consumptionData.map((row, i) => (
+                  <TableRow
+                    key={i}
+                    className="border-b border-gray-100 dark:border-gray-800 hover:bg-transparent"
+                  >
+                    <TableCell className="font-medium text-sm text-foreground py-3">
+                      {row.category}
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground py-3">
+                      {row.avgDaily}
+                    </TableCell>
+                    <TableCell className="py-3">
+                      <span
+                        className={`text-xs font-medium flex items-center gap-1 ${
+                          row.trendDir === "up"
+                            ? "text-green-600 dark:text-green-400"
+                            : row.trendDir === "down"
+                              ? "text-red-600 dark:text-red-400"
+                              : "text-muted-foreground"
+                        }`}
+                      >
+                        {row.trendDir === "up" && (
+                          <ArrowUpRight className="h-3 w-3" />
+                        )}
+                        {row.trendDir === "down" && (
+                          <ArrowDownRight className="h-3 w-3" />
+                        )}
+                        {row.trendDir === "neutral" && (
+                          <ArrowRight className="h-3 w-3" />
+                        )}
+                        {row.trend}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-sm font-bold text-foreground text-right py-3">
+                      {row.forecast}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Recommended Actions */}
+      {/* Recommended Actions - Mock data kept as requested */}
+      <div className="grid grid-cols-1 lg:grid-cols-1 gap-4">
         <Card className="border shadow-none bg-card h-full">
           <CardHeader className="py-4 border-b flex flex-row items-center justify-between space-y-0">
             <div className="flex items-center gap-2">
@@ -524,67 +638,6 @@ export const ReorderStatusPage: React.FC = () => {
                   volatility.
                 </p>
               </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Auto-Generated Requisitions */}
-        <Card className="border shadow-none bg-card h-full flex flex-col">
-          <CardHeader className="py-4 border-b flex flex-row items-center justify-between space-y-0">
-            <div className="flex items-center gap-2">
-              <FileText className="h-4 w-4 text-green-600 dark:text-green-500" />
-              <CardTitle className="text-base font-semibold text-foreground">
-                Auto-Generated Requisitions
-              </CardTitle>
-            </div>
-            <span className="text-xs text-primary font-medium cursor-pointer hover:underline">
-              View All
-            </span>
-          </CardHeader>
-          <CardContent className="p-0 flex-1 flex flex-col">
-            <Table>
-              <TableHeader className="bg-transparent">
-                <TableRow className="border-b-0 hover:bg-transparent">
-                  <TableHead className="text-xs font-semibold text-muted-foreground h-9">
-                    Req ID
-                  </TableHead>
-                  <TableHead className="text-xs font-semibold text-muted-foreground h-9">
-                    Vendor
-                  </TableHead>
-                  <TableHead className="text-xs font-semibold text-muted-foreground h-9">
-                    Items
-                  </TableHead>
-                  <TableHead className="text-xs font-semibold text-muted-foreground text-right h-9">
-                    Action
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {AUTO_REQUISITIONS.map((req, i) => (
-                  <TableRow key={i} className="border-b hover:bg-muted/50">
-                    <TableCell className="text-sm font-medium text-foreground py-3">
-                      {req.id}
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground py-3">
-                      {req.vendor}
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground py-3">
-                      {req.items}
-                    </TableCell>
-                    <TableCell className="text-right py-3">
-                      <span className="text-xs font-bold text-primary hover:underline cursor-pointer">
-                        Review
-                      </span>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-
-            <div className="p-4 mt-auto">
-              <Button className="w-full bg-primary hover:bg-primary/90 text-primary-foreground shadow">
-                Approve All Pending Requisitions
-              </Button>
             </div>
           </CardContent>
         </Card>

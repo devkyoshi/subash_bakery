@@ -46,10 +46,11 @@ func main() {
 	// Initialize services
 	povsGRNService := service.NewPOvsGRNService(procurementReportRepo, db)
 	stockLevelService := service.NewStockLevelService(inventoryReportRepo)
+	reorderStatusService := service.NewReorderStatusService(inventoryReportRepo, db)
 	exportService := service.NewExportService()
 
 	// Initialize handlers
-	reportHandler := handler.NewReportHandler(povsGRNService, stockLevelService, exportService)
+	reportHandler := handler.NewReportHandler(povsGRNService, stockLevelService, reorderStatusService, exportService)
 
 	// JWT Setup
 	refreshExpiry, _ := time.ParseDuration(cfg.RefreshExpiry)

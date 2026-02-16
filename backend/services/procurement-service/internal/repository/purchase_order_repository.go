@@ -246,7 +246,7 @@ func (r *PurchaseOrderRepository) Approve(ctx context.Context, id, approvedBy pr
 }
 
 // GetDashboardStats retrieves dashboard statistics
-func (r *PurchaseOrderRepository) GetDashboardStats(ctx context.Context, orgID primitive.ObjectID) (int64, []*models.PurchaseOrder, error) {
+func (r *PurchaseOrderRepository) GetDashboardStats(ctx context.Context, orgID primitive.ObjectID) (int64, int64, []*models.PurchaseOrder, error) {
 	// Pending PO Count (Sent, Confirmed, Partial) = Active Orders
 	pendingCount, err := r.collection.CountDocuments(ctx, bson.M{
 		"organization_id": orgID,
@@ -260,7 +260,7 @@ func (r *PurchaseOrderRepository) GetDashboardStats(ctx context.Context, orgID p
 		},
 	})
 	if err != nil {
-		return 0, nil, fmt.Errorf("failed to count pending POs: %w", err)
+		return 0, 0, nil, fmt.Errorf("failed to count pending POs: %w", err)
 	}
 
 	// Pending Approvals (Draft status) - Limit to top 5
@@ -274,13 +274,13 @@ func (r *PurchaseOrderRepository) GetDashboardStats(ctx context.Context, orgID p
 		"status":          models.POStatusDraft,
 	}, opts)
 	if err != nil {
-		return 0, nil, fmt.Errorf("failed to find pending approvals: %w", err)
+		return 0, 0, nil, fmt.Errorf("failed to find pending approvals: %w", err)
 	}
 	defer cursor.Close(ctx)
 
 	var pendingApprovals []*models.PurchaseOrder
 	if err = cursor.All(ctx, &pendingApprovals); err != nil {
-		return 0, nil, fmt.Errorf("failed to decode pending approvals: %w", err)
+		return 0, 0, nil, fmt.Errorf("failed to decode pending approvals: %w", err)
 	}
 
 	// Initialize slice
@@ -288,5 +288,14 @@ func (r *PurchaseOrderRepository) GetDashboardStats(ctx context.Context, orgID p
 		pendingApprovals = make([]*models.PurchaseOrder, 0)
 	}
 
-	return pendingCount, pendingApprovals, nil
+	// Total POs
+	totalPOs, err := r.collection.CountDocuments(ctx, bson.M{
+		"organization_id": orgID,
+		"deleted_at":      nil,
+	})
+	if err != nil {
+		return 0, 0, nil, fmt.Errorf("failed to count total POs: %w", err)
+	}
+
+	return pendingCount, totalPOs, pendingApprovals, nil
 }

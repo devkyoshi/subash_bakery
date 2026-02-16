@@ -15,16 +15,18 @@ import (
 )
 
 type ReportHandler struct {
-	povsGRNService    *service.POvsGRNService
-	stockLevelService *service.StockLevelService
-	exportService     *service.ExportService
+	povsGRNService       *service.POvsGRNService
+	stockLevelService    *service.StockLevelService
+	reorderStatusService *service.ReorderStatusService
+	exportService        *service.ExportService
 }
 
-func NewReportHandler(povsGRNService *service.POvsGRNService, stockLevelService *service.StockLevelService, exportService *service.ExportService) *ReportHandler {
+func NewReportHandler(povsGRNService *service.POvsGRNService, stockLevelService *service.StockLevelService, reorderStatusService *service.ReorderStatusService, exportService *service.ExportService) *ReportHandler {
 	return &ReportHandler{
-		povsGRNService:    povsGRNService,
-		stockLevelService: stockLevelService,
-		exportService:     exportService,
+		povsGRNService:       povsGRNService,
+		stockLevelService:    stockLevelService,
+		reorderStatusService: reorderStatusService,
+		exportService:        exportService,
 	}
 }
 
@@ -42,6 +44,9 @@ func (h *ReportHandler) RegisterRoutes(router *gin.RouterGroup, jwtManager *util
 	protected.GET("/organizations/:org_id/reports/stock-levels", h.GetStockLevelReport)
 	protected.GET("/organizations/:org_id/reports/stock-levels/export/excel", h.ExportStockLevelExcel)
 	protected.GET("/organizations/:org_id/reports/stock-levels/export/pdf", h.ExportStockLevelPDF)
+
+	// Reorder Status Reports
+	protected.GET("/organizations/:org_id/reports/reorder-status", h.GetReorderStatusReport)
 }
 
 // parseReportFilters extracts filter parameters from the request
@@ -274,4 +279,51 @@ func calculateTotalPages(total int64, limit int) int {
 		pages++
 	}
 	return pages
+}
+
+// parseReorderStatusFilters extracts reorder status filter parameters from the request
+func parseReorderStatusFilters(c *gin.Context) models.ReorderStatusFilters {
+	includePending := c.Query("include_pending") == "true"
+	return models.ReorderStatusFilters{
+		CategoryID:     c.Query("category_id"),
+		LocationID:     c.Query("location_id"),
+		Priority:       c.Query("priority"),
+		Search:         c.Query("search"),
+		IncludePending: includePending,
+	}
+}
+
+// GetReorderStatusReport returns the reorder status report data
+func (h *ReportHandler) GetReorderStatusReport(c *gin.Context) {
+	orgIDStr := c.Param("org_id")
+	orgID, err := primitive.ObjectIDFromHex(orgIDStr)
+	if err != nil {
+		utils.ErrorResponse(c, http.StatusBadRequest, "INVALID_ORG_ID", "Invalid organization ID", nil)
+		return
+	}
+
+	page := utils.GetPageParam(c)
+	limit := utils.GetLimitParam(c)
+	filters := parseReorderStatusFilters(c)
+
+	report, err := h.reorderStatusService.GetReorderStatusReport(c.Request.Context(), orgID, filters, page, limit)
+	if err != nil {
+		utils.ErrorResponse(c, http.StatusInternalServerError, "REPORT_ERROR", err.Error(), nil)
+		return
+	}
+
+	c.JSON(http.StatusOK, utils.Response{
+		Success: true,
+		Data: utils.PaginationResponse{
+			Data: report,
+			Pagination: utils.PaginationMetadata{
+				Page:       page,
+				Limit:      limit,
+				Total:      report.TotalItems,
+				TotalPages: calculateTotalPages(report.TotalItems, limit),
+			},
+		},
+		Message:   "Reorder status report retrieved successfully",
+		Timestamp: time.Now(),
+	})
 }

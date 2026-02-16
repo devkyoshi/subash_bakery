@@ -4,6 +4,8 @@ import {
   ReportFilters,
   StockLevelReportResponse,
   StockLevelFilters,
+  ReorderStatusReportResponse,
+  ReorderStatusFilters,
 } from "@/types/report.types";
 
 interface PaginatedReportResponse {
@@ -25,6 +27,20 @@ interface PaginatedStockLevelResponse {
   message: string;
   data: {
     data: StockLevelReportResponse;
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      total_pages: number;
+    };
+  };
+}
+
+interface PaginatedReorderStatusResponse {
+  success: boolean;
+  message: string;
+  data: {
+    data: ReorderStatusReportResponse;
     pagination: {
       page: number;
       limit: number;
@@ -122,6 +138,21 @@ class ReportService {
         params: filters,
         responseType: "blob",
       }
+    );
+    return response.data;
+  }
+
+  // ============================================================
+  // Reorder Status Report
+  // ============================================================
+
+  async getReorderStatusReport(
+    orgId: string,
+    params?: ReorderStatusFilters & { page?: number; limit?: number }
+  ): Promise<PaginatedReorderStatusResponse> {
+    const response = await axiosInstance.get<PaginatedReorderStatusResponse>(
+      `/organizations/${orgId}/reports/reorder-status`,
+      { params }
     );
     return response.data;
   }

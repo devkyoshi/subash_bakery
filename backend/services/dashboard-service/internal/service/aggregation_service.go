@@ -26,6 +26,7 @@ func NewAggregationService(rabbitClient *rabbitmq.RabbitMQClient, activityServic
 type DashboardOverview struct {
 	Inventory   interface{}        `json:"inventory"`
 	Procurement interface{}        `json:"procurement"`
+	Product     interface{}        `json:"product"`
 	Activities  []*models.Activity `json:"activities"`
 	Errors      []string           `json:"errors,omitempty"`
 }
@@ -52,7 +53,6 @@ func (s *AggregationService) GetDashboardOverview(ctx context.Context, orgID pri
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		// Timeout for this specific request
 		timeoutCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 		defer cancel()
 
@@ -60,8 +60,6 @@ func (s *AggregationService) GetDashboardOverview(ctx context.Context, orgID pri
 		mu.Lock()
 		defer mu.Unlock()
 		if err != nil {
-			// Instead of erroring out completely, we append the error and proceed
-			// In production, we might want to log this and continue
 			errors = append(errors, fmt.Sprintf("Inventory service error: %v", err))
 		} else {
 			overview.Inventory = resp
@@ -72,7 +70,6 @@ func (s *AggregationService) GetDashboardOverview(ctx context.Context, orgID pri
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		// Timeout for this specific request
 		timeoutCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 		defer cancel()
 
@@ -86,11 +83,27 @@ func (s *AggregationService) GetDashboardOverview(ctx context.Context, orgID pri
 		}
 	}()
 
+	// Fetch Product Stats
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		timeoutCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		defer cancel()
+
+		resp, err := s.rabbitClient.RPCRequest(timeoutCtx, "product.dashboard.stats", rpcReq)
+		mu.Lock()
+		defer mu.Unlock()
+		if err != nil {
+			errors = append(errors, fmt.Sprintf("Product service error: %v", err))
+		} else {
+			overview.Product = resp
+		}
+	}()
+
 	// Fetch Recent Activities (Local DB)
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		// Fetch last 10 activities
 		activities, err := s.activityService.GetRecentActivities(ctx, orgID, 10)
 		mu.Lock()
 		defer mu.Unlock()

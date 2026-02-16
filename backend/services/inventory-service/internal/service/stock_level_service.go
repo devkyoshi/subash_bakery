@@ -152,7 +152,7 @@ func (s *StockLevelService) ReleaseStock(ctx context.Context, productID, locatio
 
 // GetDashboardStats retrieves critical stock count and low stock items
 func (s *StockLevelService) GetDashboardStats(ctx context.Context, orgID primitive.ObjectID, token string) (map[string]interface{}, error) {
-	criticalCount, lowStockItems, err := s.stockRepo.GetDashboardStats(ctx, orgID)
+	criticalCount, inStockCount, outOfStockCount, lowStockItems, err := s.stockRepo.GetDashboardStats(ctx, orgID)
 	if err != nil {
 		return nil, err
 	}
@@ -179,6 +179,8 @@ func (s *StockLevelService) GetDashboardStats(ctx context.Context, orgID primiti
 
 	return map[string]interface{}{
 		"critical_stock_count": criticalCount,
+		"in_stock_count":       inStockCount,
+		"out_of_stock_count":   outOfStockCount,
 		"low_stock_items":      lowStockItems,
 	}, nil
 }
