@@ -220,7 +220,8 @@ func (h *ProcurementHandler) ListPurchaseOrders(c *gin.Context) {
 		filters["search"] = search
 	}
 
-	pos, total, err := h.procurementService.ListPurchaseOrders(c.Request.Context(), orgID, filters, page, limit)
+	token := c.GetHeader("Authorization")
+	pos, total, err := h.procurementService.ListPurchaseOrders(c.Request.Context(), orgID, filters, page, limit, token)
 	if err != nil {
 		utils.ErrorResponse(c, http.StatusInternalServerError, "LIST_PO_ERROR", err.Error(), nil)
 		return

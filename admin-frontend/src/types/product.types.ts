@@ -213,9 +213,9 @@ export interface UpdateProductRequest {
 
 export interface ProductFilters {
   organization_id: string;
-  category_id?: string;
-  subcategory_id?: string;
-  brand_id?: string;
+  category_id?: string | string[];
+  subcategory_id?: string | string[];
+  brand_id?: string | string[];
   status?: ProductStatus;
   type?: ProductType;
   track_inventory?: boolean;

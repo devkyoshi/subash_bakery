@@ -78,14 +78,14 @@ func (r *ProductRepository) FindByOrganization(ctx context.Context, orgID primit
 	}
 
 	// Apply additional filters
-	if categoryID, ok := filters["category_id"].(primitive.ObjectID); ok {
-		filter["category_id"] = categoryID
+	if categoryIDs, ok := filters["category_ids"].([]primitive.ObjectID); ok && len(categoryIDs) > 0 {
+		filter["category_id"] = bson.M{"$in": categoryIDs}
 	}
-	if subcategoryID, ok := filters["subcategory_id"].(primitive.ObjectID); ok {
-		filter["subcategory_id"] = subcategoryID
+	if subcategoryIDs, ok := filters["subcategory_ids"].([]primitive.ObjectID); ok && len(subcategoryIDs) > 0 {
+		filter["subcategory_id"] = bson.M{"$in": subcategoryIDs}
 	}
-	if brandID, ok := filters["brand_id"].(primitive.ObjectID); ok {
-		filter["brand_id"] = brandID
+	if brandIDs, ok := filters["brand_ids"].([]primitive.ObjectID); ok && len(brandIDs) > 0 {
+		filter["brand_id"] = bson.M{"$in": brandIDs}
 	}
 	if status, ok := filters["status"].(models.ProductStatus); ok {
 		filter["status"] = status

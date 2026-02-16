@@ -288,27 +288,61 @@ func (s *ProcurementService) GetPurchaseOrder(ctx context.Context, id primitive.
 	return po, nil
 }
 
-func (s *ProcurementService) ListPurchaseOrders(ctx context.Context, orgID primitive.ObjectID, filters map[string]interface{}, page, limit int) ([]*models.PurchaseOrder, int64, error) {
+func (s *ProcurementService) ListPurchaseOrders(ctx context.Context, orgID primitive.ObjectID, filters map[string]interface{}, page, limit int, token string) ([]*models.PurchaseOrder, int64, error) {
 	orders, total, err := s.poRepo.FindAll(ctx, orgID, filters, page, limit)
 	if err != nil {
 		return nil, 0, err
 	}
 
-	// Collect all supplier IDs
+	// Collections for enrichment
 	supplierIDSet := make(map[string]primitive.ObjectID)
+	productIDSet := make(map[string]primitive.ObjectID)
+
 	for _, order := range orders {
 		if !order.SupplierID.IsZero() {
 			supplierIDSet[order.SupplierID.Hex()] = order.SupplierID
 		}
+		for _, item := range order.Items {
+			productIDSet[item.ProductID.Hex()] = item.ProductID
+		}
 	}
 
 	// Fetch suppliers and enrich
-	for _, supplierID := range supplierIDSet {
-		supplier, err := s.supplierRepo.FindByID(ctx, supplierID)
-		if err == nil && supplier != nil {
+	if len(supplierIDSet) > 0 {
+		for _, supplierID := range supplierIDSet {
+			supplier, err := s.supplierRepo.FindByID(ctx, supplierID)
+			if err == nil && supplier != nil {
+				for _, order := range orders {
+					if order.SupplierID == supplierID {
+						order.SupplierName = supplier.CompanyName
+					}
+				}
+			}
+		}
+	}
+
+	// Fetch products and enrich items
+	if len(productIDSet) > 0 {
+		var productIDs []primitive.ObjectID
+		for _, id := range productIDSet {
+			productIDs = append(productIDs, id)
+		}
+
+		if products, err := s.productClient.GetProductsBatch(ctx, productIDs, token); err == nil {
 			for _, order := range orders {
-				if order.SupplierID == supplierID {
-					order.SupplierName = supplier.CompanyName
+				for i := range order.Items {
+					if prod, ok := products[order.Items[i].ProductID.Hex()]; ok {
+						if order.Items[i].ProductName == "" {
+							order.Items[i].ProductName = prod.Name
+						}
+						if order.Items[i].Description == "" {
+							order.Items[i].Description = prod.Description
+						}
+						// Also populate SKU if missing
+						if order.Items[i].SKU == "" {
+							order.Items[i].SKU = prod.SKU
+						}
+					}
 				}
 			}
 		}

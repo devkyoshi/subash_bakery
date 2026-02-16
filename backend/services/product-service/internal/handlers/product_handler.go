@@ -3,6 +3,7 @@ package handlers
 import (
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/yourusername/erp-system/services/product-service/internal/service"
@@ -226,31 +227,69 @@ func (h *ProductHandler) ListProducts(c *gin.Context) {
 	// Build filters
 	filters := make(map[string]interface{})
 
-	if categoryIDParam := c.Query("category_id"); categoryIDParam != "" {
-		categoryID, err := primitive.ObjectIDFromHex(categoryIDParam)
+	// Helper function to parse comma-separated ObjectIDs
+	parseObjectIDs := func(param string) ([]primitive.ObjectID, error) {
+		var ids []primitive.ObjectID
+		if param == "" {
+			return ids, nil
+		}
+		for _, idStr := range strings.Split(param, ",") {
+			id, err := primitive.ObjectIDFromHex(strings.TrimSpace(idStr))
+			if err != nil {
+				return nil, err
+			}
+			ids = append(ids, id)
+		}
+		return ids, nil
+	}
+
+	if categoryIDsParam := c.Query("category_ids"); categoryIDsParam != "" {
+		ids, err := parseObjectIDs(categoryIDsParam)
+		if err != nil {
+			utils.ErrorResponse(c, http.StatusBadRequest, "INVALID_ID", "Invalid category_ids", nil)
+			return
+		}
+		filters["category_ids"] = ids
+	} else if categoryIDParam := c.Query("category_id"); categoryIDParam != "" {
+		// Backward compatibility
+		id, err := primitive.ObjectIDFromHex(categoryIDParam)
 		if err != nil {
 			utils.ErrorResponse(c, http.StatusBadRequest, "INVALID_ID", "Invalid category_id", nil)
 			return
 		}
-		filters["category_id"] = categoryID
+		filters["category_ids"] = []primitive.ObjectID{id}
 	}
 
-	if subcategoryIDParam := c.Query("subcategory_id"); subcategoryIDParam != "" {
-		subcategoryID, err := primitive.ObjectIDFromHex(subcategoryIDParam)
+	if subcategoryIDsParam := c.Query("subcategory_ids"); subcategoryIDsParam != "" {
+		ids, err := parseObjectIDs(subcategoryIDsParam)
+		if err != nil {
+			utils.ErrorResponse(c, http.StatusBadRequest, "INVALID_ID", "Invalid subcategory_ids", nil)
+			return
+		}
+		filters["subcategory_ids"] = ids
+	} else if subcategoryIDParam := c.Query("subcategory_id"); subcategoryIDParam != "" {
+		id, err := primitive.ObjectIDFromHex(subcategoryIDParam)
 		if err != nil {
 			utils.ErrorResponse(c, http.StatusBadRequest, "INVALID_ID", "Invalid subcategory_id", nil)
 			return
 		}
-		filters["subcategory_id"] = subcategoryID
+		filters["subcategory_ids"] = []primitive.ObjectID{id}
 	}
 
-	if brandIDParam := c.Query("brand_id"); brandIDParam != "" {
-		brandID, err := primitive.ObjectIDFromHex(brandIDParam)
+	if brandIDsParam := c.Query("brand_ids"); brandIDsParam != "" {
+		ids, err := parseObjectIDs(brandIDsParam)
+		if err != nil {
+			utils.ErrorResponse(c, http.StatusBadRequest, "INVALID_ID", "Invalid brand_ids", nil)
+			return
+		}
+		filters["brand_ids"] = ids
+	} else if brandIDParam := c.Query("brand_id"); brandIDParam != "" {
+		id, err := primitive.ObjectIDFromHex(brandIDParam)
 		if err != nil {
 			utils.ErrorResponse(c, http.StatusBadRequest, "INVALID_ID", "Invalid brand_id", nil)
 			return
 		}
-		filters["brand_id"] = brandID
+		filters["brand_ids"] = []primitive.ObjectID{id}
 	}
 
 	if status := c.Query("status"); status != "" {
