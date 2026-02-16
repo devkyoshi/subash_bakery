@@ -17,6 +17,7 @@ import {
   ArrowRightLeft,
   PackageCheck,
   ShieldCheck,
+  Monitor,
 } from "lucide-react";
 
 export type SidebarNavItem = {
@@ -42,6 +43,7 @@ export const SIDEBAR_NAV: SidebarNavItem[] = [
   { label: "Categories", to: "/app/categories", icon: Layers },
   { label: "Brands", to: "/app/brands", icon: Tag },
   { label: "Companies", to: "/app/companies", icon: Building2 },
+  { label: "Devices", to: "/app/devices", icon: Monitor },
   {
     label: "Procurement",
     to: "/app/procurement",

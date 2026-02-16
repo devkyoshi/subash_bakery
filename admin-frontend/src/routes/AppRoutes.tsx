@@ -50,6 +50,8 @@ import { CreateStockAdjustmentPage } from "@/pages/inventory/CreateStockAdjustme
 import { StockAdjustmentDetailsPage } from "@/pages/inventory/StockAdjustmentDetailsPage";
 import { StockMovementsPage } from "@/pages/inventory/StockMovementsPage";
 import StockLevelReportPage from "@/pages/reports/stock-levels";
+import { DevicesPage } from "@/pages/devices/DeviceList";
+import { DeviceFormPage } from "@/pages/devices/DeviceForm";
 
 export function AppRoutes() {
   return (
@@ -103,6 +105,10 @@ export function AppRoutes() {
         <Route path="settings/unit-charts" element={<UnitChartList />} />
         <Route path="companies" element={<CompanyList />} />
         <Route path="companies/:id" element={<CompanyDetail />} />
+
+        <Route path="devices" element={<DevicesPage />} />
+        <Route path="devices/new" element={<DeviceFormPage />} />
+        <Route path="devices/:id/edit" element={<DeviceFormPage />} />
 
         <Route path="procurement/suppliers" element={<SuppliersPage />} />
         <Route

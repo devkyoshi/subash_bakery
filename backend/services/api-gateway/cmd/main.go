@@ -71,6 +71,8 @@ func main() {
 			}
 		} else if strings.HasPrefix(path, "/auth") || strings.HasPrefix(path, "/users") || strings.HasPrefix(path, "/roles") || strings.HasPrefix(path, "/permissions") {
 			targetURL = cfg.AuthServiceURL
+		} else if strings.HasPrefix(path, "/org-devices") {
+			targetURL = cfg.OrgServiceURL
 		} else if strings.HasPrefix(path, "/companies") || strings.HasPrefix(path, "/locations") {
 			targetURL = cfg.OrgServiceURL
 		} else if strings.Contains(path, "/stock") ||

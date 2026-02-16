@@ -68,9 +68,10 @@ func main() {
 	sessionRepo := repository.NewSessionRepository(mongoDB.Database)
 	roleRepo := repository.NewRoleRepository(mongoDB.Database)
 	permissionRepo := repository.NewPermissionRepository(mongoDB.Database)
+	deviceRepo := repository.NewDeviceRepository(mongoDB.Database)
 
 	// Initialize services
-	authService := service.NewAuthService(userRepo, sessionRepo, roleRepo, permissionRepo, jwtManager, cfg)
+	authService := service.NewAuthService(userRepo, sessionRepo, roleRepo, permissionRepo, deviceRepo, jwtManager, cfg)
 	roleService := service.NewRoleService(roleRepo, permissionRepo, userRepo)
 
 	// Initialize handlers

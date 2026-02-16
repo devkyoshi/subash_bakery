@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -23,6 +24,7 @@ type AuthService struct {
 	sessionRepo    *repository.SessionRepository
 	roleRepo       *repository.RoleRepository
 	permissionRepo *repository.PermissionRepository
+	deviceRepo     *repository.DeviceRepository
 	jwtManager     *utils.JWTManager
 	config         *config.Config
 	oauthConfig    *oauth2.Config
@@ -33,6 +35,7 @@ func NewAuthService(
 	sessionRepo *repository.SessionRepository,
 	roleRepo *repository.RoleRepository,
 	permissionRepo *repository.PermissionRepository,
+	deviceRepo *repository.DeviceRepository,
 	jwtManager *utils.JWTManager,
 	cfg *config.Config,
 ) *AuthService {
@@ -52,6 +55,7 @@ func NewAuthService(
 		sessionRepo:    sessionRepo,
 		roleRepo:       roleRepo,
 		permissionRepo: permissionRepo,
+		deviceRepo:     deviceRepo,
 		jwtManager:     jwtManager,
 		config:         cfg,
 		oauthConfig:    oauthConfig,
@@ -65,6 +69,7 @@ type RegisterRequest struct {
 	LastName       string `json:"last_name" binding:"required"`
 	Phone          string `json:"phone"`
 	OrganizationID string `json:"organization_id"`
+	MACAddress     string `json:"mac_address"`
 }
 
 type LoginRequest struct {
@@ -115,13 +120,24 @@ func (s *AuthService) Register(ctx context.Context, req RegisterRequest) (*AuthR
 		return nil, fmt.Errorf("failed to hash password: %w", err)
 	}
 
-	// Parse organization ID if provided
+	// Resolve organization ID
 	var orgID primitive.ObjectID
 	if req.OrganizationID != "" {
+		// Explicitly provided org ID (admin dashboard flow)
 		orgID, err = primitive.ObjectIDFromHex(req.OrganizationID)
 		if err != nil {
 			return nil, fmt.Errorf("invalid organization ID: %w", err)
 		}
+	} else if req.MACAddress != "" {
+		// Look up organization from registered device (mobile app flow)
+		device, err := s.deviceRepo.FindByMACAddress(ctx, normalizeMACAddress(req.MACAddress))
+		if err != nil {
+			return nil, fmt.Errorf("failed to look up device: %w", err)
+		}
+		if device == nil {
+			return nil, fmt.Errorf("device not registered: please contact your administrator to register this device")
+		}
+		orgID = device.OrganizationID
 	}
 
 	// Create user
@@ -621,4 +637,23 @@ func (s *AuthService) DeleteUser(ctx context.Context, userID string) error {
 	}
 
 	return s.userRepo.Delete(ctx, id)
+}
+
+// normalizeMACAddress normalizes a MAC address to uppercase colon-separated format
+func normalizeMACAddress(mac string) string {
+	mac = strings.TrimSpace(mac)
+	mac = strings.ReplaceAll(mac, "-", "")
+	mac = strings.ReplaceAll(mac, ":", "")
+	mac = strings.ReplaceAll(mac, ".", "")
+	mac = strings.ToUpper(mac)
+
+	if len(mac) != 12 {
+		return mac // Return as-is; device repo will handle no-match
+	}
+
+	parts := make([]string, 6)
+	for i := 0; i < 6; i++ {
+		parts[i] = mac[i*2 : i*2+2]
+	}
+	return strings.Join(parts, ":")
 }
