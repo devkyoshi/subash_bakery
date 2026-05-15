@@ -48,10 +48,11 @@ func main() {
 		log.Fatalf("Failed to create indexes: %v", err)
 	}
 
-	// Seed database with system permissions and roles
+	// Seed database with system permissions, roles, and admin user
 	seeder := seed.NewSeeder(
 		repository.NewPermissionRepository(mongoDB.Database),
 		repository.NewRoleRepository(mongoDB.Database),
+		repository.NewUserRepository(mongoDB.Database),
 	)
 	seedCtx, seedCancel := context.WithTimeout(context.Background(), 30*time.Second)
 	if err := seeder.SeedAll(seedCtx); err != nil {
