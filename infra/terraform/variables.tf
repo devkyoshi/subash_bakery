@@ -55,7 +55,7 @@ variable "firebase_credentials_json" {
 
 variable "google_redirect_url" {
   type        = string
-  default     = ""
+  default     = "https://placeholder.example.com/api/v1/auth/google/callback"
   description = "Google OAuth redirect URL. Set to https://API_GATEWAY_URL/api/v1/auth/google/callback after first deploy."
 }
 

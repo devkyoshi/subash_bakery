@@ -20,6 +20,8 @@ env:
   TF_VAR_google_client_id: ${{ secrets.TF_GOOGLE_CLIENT_ID }}
   TF_VAR_google_client_secret: ${{ secrets.TF_GOOGLE_CLIENT_SECRET }}
   TF_VAR_firebase_credentials_json: ${{ secrets.TF_FIREBASE_CREDENTIALS_JSON }}
+  TF_VAR_google_redirect_url: ${{ secrets.TF_GOOGLE_REDIRECT_URL }}
+  TF_VAR_product_service_url: ${{ secrets.TF_PRODUCT_SERVICE_URL }}
   TF_VAR_image_tag: ${{ github.sha }}
 
 jobs:
