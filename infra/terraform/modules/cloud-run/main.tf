@@ -602,7 +602,7 @@ resource "google_cloud_run_v2_service" "api_gateway" {
 
     vpc_access {
       connector = var.connector_id
-      egress    = "PRIVATE_RANGES_ONLY"
+      egress    = "ALL_TRAFFIC"
     }
 
     containers {
