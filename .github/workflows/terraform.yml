@@ -11,6 +11,16 @@ defaults:
   run:
     working-directory: infra/terraform
 
+env:
+  TF_VAR_project_id: subash-bakery-495502
+  TF_VAR_mongo_password: ${{ secrets.TF_MONGO_PASSWORD }}
+  TF_VAR_rabbitmq_password: ${{ secrets.TF_RABBITMQ_PASSWORD }}
+  TF_VAR_jwt_secret: ${{ secrets.TF_JWT_SECRET }}
+  TF_VAR_google_client_id: ${{ secrets.TF_GOOGLE_CLIENT_ID }}
+  TF_VAR_google_client_secret: ${{ secrets.TF_GOOGLE_CLIENT_SECRET }}
+  TF_VAR_firebase_credentials_json: ${{ secrets.TF_FIREBASE_CREDENTIALS_JSON }}
+  TF_VAR_image_tag: ${{ github.sha }}
+
 jobs:
   terraform:
     runs-on: ubuntu-latest
@@ -42,29 +52,7 @@ jobs:
         run: terraform validate
 
       - name: Terraform Plan
-        id: plan
-        env:
-          TF_VAR_project_id: subash-bakery-495502
-          TF_VAR_mongo_password: ${{ secrets.TF_MONGO_PASSWORD }}
-          TF_VAR_rabbitmq_password: ${{ secrets.TF_RABBITMQ_PASSWORD }}
-          TF_VAR_jwt_secret: ${{ secrets.TF_JWT_SECRET }}
-          TF_VAR_google_client_id: ${{ secrets.TF_GOOGLE_CLIENT_ID }}
-          TF_VAR_google_client_secret: ${{ secrets.TF_GOOGLE_CLIENT_SECRET }}
-          TF_VAR_firebase_credentials_json: ${{ secrets.TF_FIREBASE_CREDENTIALS_JSON }}
-          TF_VAR_image_tag: ${{ github.sha }}
-        run: |
-          terraform plan -out=tfplan -no-color 2>&1 | tee plan_output.txt
-          echo "exitcode=$?" >> "$GITHUB_OUTPUT"
+        run: terraform plan -out=tfplan -no-color
 
       - name: Terraform Apply
-        if: github.ref == 'refs/heads/main'
-        env:
-          TF_VAR_project_id: subash-bakery-495502
-          TF_VAR_mongo_password: ${{ secrets.TF_MONGO_PASSWORD }}
-          TF_VAR_rabbitmq_password: ${{ secrets.TF_RABBITMQ_PASSWORD }}
-          TF_VAR_jwt_secret: ${{ secrets.TF_JWT_SECRET }}
-          TF_VAR_google_client_id: ${{ secrets.TF_GOOGLE_CLIENT_ID }}
-          TF_VAR_google_client_secret: ${{ secrets.TF_GOOGLE_CLIENT_SECRET }}
-          TF_VAR_firebase_credentials_json: ${{ secrets.TF_FIREBASE_CREDENTIALS_JSON }}
-          TF_VAR_image_tag: ${{ github.sha }}
         run: terraform apply -auto-approve tfplan
