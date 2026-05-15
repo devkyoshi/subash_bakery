@@ -55,12 +55,15 @@ func main() {
 	companyRepo := repository.NewCompanyRepository(mongoDB.Database)
 	locationRepo := repository.NewLocationRepository(mongoDB.Database)
 	locationUserRepo := repository.NewLocationUserRepository(mongoDB.Database)
+	deviceRepo := repository.NewDeviceRepository(mongoDB.Database)
 
 	// Initialize services
 	orgService := service.NewOrganizationService(orgRepo, companyRepo, locationRepo, locationUserRepo)
+	deviceService := service.NewDeviceService(deviceRepo, orgRepo)
 
 	// Initialize handlers
 	orgHandler := handlers.NewOrganizationHandler(orgService)
+	deviceHandler := handlers.NewDeviceHandler(deviceService)
 
 	// Set Gin mode
 	if cfg.Environment == "production" {
@@ -85,6 +88,7 @@ func main() {
 	// API routes
 	v1 := router.Group("/api/v1")
 	orgHandler.RegisterRoutes(v1, jwtManager)
+	deviceHandler.RegisterRoutes(v1, jwtManager)
 
 	// Start server
 	srv := &http.Server{
@@ -230,6 +234,32 @@ func createIndexes(db *mongo.Database) error {
 	_, err = locationUsersCollection.Indexes().CreateMany(ctx, locationUsersIndexes)
 	if err != nil {
 		return fmt.Errorf("failed to create location_users indexes: %w", err)
+	}
+
+	// Devices collection indexes
+	devicesCollection := db.Collection("devices")
+	devicesIndexes := []mongo.IndexModel{
+		{
+			Keys:    bson.D{{Key: "mac_address", Value: 1}},
+			Options: options.Index().SetUnique(true).SetPartialFilterExpression(bson.M{"deleted_at": nil}),
+		},
+		{
+			Keys: bson.D{{Key: "organization_id", Value: 1}},
+		},
+		{
+			Keys: bson.D{{Key: "is_active", Value: 1}},
+		},
+		{
+			Keys: bson.D{{Key: "deleted_at", Value: 1}},
+		},
+		{
+			Keys: bson.D{{Key: "created_at", Value: -1}},
+		},
+	}
+
+	_, err = devicesCollection.Indexes().CreateMany(ctx, devicesIndexes)
+	if err != nil {
+		return fmt.Errorf("failed to create devices indexes: %w", err)
 	}
 
 	log.Println("Database indexes created successfully")

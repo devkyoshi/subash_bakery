@@ -8,8 +8,10 @@ export function CalendarCard() {
 
   return (
     <Card className="rounded-[18px] bg-elevated p-6 shadow-none">
-      <div className="flex items-center gap-2 text-sm font-semibold">Calendar</div>
-      <div className="mt-4">
+      <div className="flex items-center gap-2 text-sm font-semibold">
+        Calendar
+      </div>
+      <div className="mt-4 flex justify-center">
         <Calendar
           mode="single"
           selected={date}

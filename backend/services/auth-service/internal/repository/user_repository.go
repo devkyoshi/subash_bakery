@@ -5,10 +5,11 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/yourusername/erp-system/shared/models"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
-	"github.com/yourusername/erp-system/shared/models"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 type UserRepository struct {
@@ -91,7 +92,7 @@ func (r *UserRepository) UpdateLastLogin(ctx context.Context, userID primitive.O
 	filter := bson.M{"_id": userID}
 	update := bson.M{
 		"$set": bson.M{
-			"last_login":  time.Now(),
+			"last_login": time.Now(),
 			"updated_at": time.Now(),
 		},
 	}
@@ -110,4 +111,71 @@ func (r *UserRepository) EmailExists(ctx context.Context, email string) (bool, e
 		return false, fmt.Errorf("failed to check email existence: %w", err)
 	}
 	return count > 0, nil
+}
+
+// FindAll finds all users with pagination and filtering
+func (r *UserRepository) FindAll(ctx context.Context, orgID primitive.ObjectID, filters map[string]interface{}, page, limit int) ([]*models.User, int64, error) {
+	filter := bson.M{
+		"organization_id": orgID,
+	}
+
+	// Apply filters
+	if search, ok := filters["search"].(string); ok && search != "" {
+		filter["$or"] = []bson.M{
+			{"first_name": bson.M{"$regex": search, "$options": "i"}},
+			{"last_name": bson.M{"$regex": search, "$options": "i"}},
+			{"email": bson.M{"$regex": search, "$options": "i"}},
+		}
+	}
+	if roleID, ok := filters["role_id"].(primitive.ObjectID); ok {
+		filter["role_id"] = roleID
+	}
+	if status, ok := filters["status"].(string); ok && status != "" {
+		if status == "active" {
+			filter["is_active"] = true
+		} else if status == "inactive" {
+			filter["is_active"] = false
+		}
+	}
+
+	// Count total documents
+	total, err := r.collection.CountDocuments(ctx, filter)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to count users: %w", err)
+	}
+
+	// Find with pagination
+	opts := options.Find().
+		SetSort(bson.D{{Key: "created_at", Value: -1}}).
+		SetSkip(int64((page - 1) * limit)).
+		SetLimit(int64(limit))
+
+	cursor, err := r.collection.Find(ctx, filter, opts)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to find users: %w", err)
+	}
+	defer cursor.Close(ctx)
+
+	var users []*models.User
+	if err := cursor.All(ctx, &users); err != nil {
+		return nil, 0, fmt.Errorf("failed to decode users: %w", err)
+	}
+
+	return users, total, nil
+}
+
+// Delete permanently deletes a user
+func (r *UserRepository) Delete(ctx context.Context, id primitive.ObjectID) error {
+	filter := bson.M{"_id": id}
+
+	result, err := r.collection.DeleteOne(ctx, filter)
+	if err != nil {
+		return fmt.Errorf("failed to delete user: %w", err)
+	}
+
+	if result.DeletedCount == 0 {
+		return fmt.Errorf("user not found")
+	}
+
+	return nil
 }

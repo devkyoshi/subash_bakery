@@ -107,3 +107,24 @@ func (r *RoleRepository) FindByName(ctx context.Context, name string) (*models.R
 	}
 	return &role, nil
 }
+
+// FindByIDs finds multiple roles by their IDs
+func (r *RoleRepository) FindByIDs(ctx context.Context, ids []primitive.ObjectID) ([]*models.Role, error) {
+	if len(ids) == 0 {
+		return []*models.Role{}, nil
+	}
+
+	filter := bson.M{"_id": bson.M{"$in": ids}}
+	cursor, err := r.collection.Find(ctx, filter)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find roles: %w", err)
+	}
+	defer cursor.Close(ctx)
+
+	var roles []*models.Role
+	if err := cursor.All(ctx, &roles); err != nil {
+		return nil, fmt.Errorf("failed to decode roles: %w", err)
+	}
+
+	return roles, nil
+}

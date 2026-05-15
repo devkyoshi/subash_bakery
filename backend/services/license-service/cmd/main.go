@@ -41,7 +41,7 @@ func main() {
 	log.Println("Connected to MongoDB successfully")
 
 	// Get database
-	db := client.Database("erp_license")
+	db := client.Database("erp_db")
 
 	// Create indexes
 	if err := createIndexes(db); err != nil {
@@ -74,7 +74,7 @@ func main() {
 
 	// Middleware
 	router.Use(middleware.CORSMiddleware())
-	router.Use(middleware.RateLimitMiddleware())
+	// router.Use(middleware.RateLimitMiddleware())
 
 	// Health check
 	router.GET("/health", func(c *gin.Context) {

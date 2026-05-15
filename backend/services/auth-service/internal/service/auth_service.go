@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -23,6 +24,7 @@ type AuthService struct {
 	sessionRepo    *repository.SessionRepository
 	roleRepo       *repository.RoleRepository
 	permissionRepo *repository.PermissionRepository
+	deviceRepo     *repository.DeviceRepository
 	jwtManager     *utils.JWTManager
 	config         *config.Config
 	oauthConfig    *oauth2.Config
@@ -33,6 +35,7 @@ func NewAuthService(
 	sessionRepo *repository.SessionRepository,
 	roleRepo *repository.RoleRepository,
 	permissionRepo *repository.PermissionRepository,
+	deviceRepo *repository.DeviceRepository,
 	jwtManager *utils.JWTManager,
 	cfg *config.Config,
 ) *AuthService {
@@ -52,6 +55,7 @@ func NewAuthService(
 		sessionRepo:    sessionRepo,
 		roleRepo:       roleRepo,
 		permissionRepo: permissionRepo,
+		deviceRepo:     deviceRepo,
 		jwtManager:     jwtManager,
 		config:         cfg,
 		oauthConfig:    oauthConfig,
@@ -65,6 +69,7 @@ type RegisterRequest struct {
 	LastName       string `json:"last_name" binding:"required"`
 	Phone          string `json:"phone"`
 	OrganizationID string `json:"organization_id"`
+	MACAddress     string `json:"mac_address"`
 }
 
 type LoginRequest struct {
@@ -115,13 +120,24 @@ func (s *AuthService) Register(ctx context.Context, req RegisterRequest) (*AuthR
 		return nil, fmt.Errorf("failed to hash password: %w", err)
 	}
 
-	// Parse organization ID if provided
+	// Resolve organization ID
 	var orgID primitive.ObjectID
 	if req.OrganizationID != "" {
+		// Explicitly provided org ID (admin dashboard flow)
 		orgID, err = primitive.ObjectIDFromHex(req.OrganizationID)
 		if err != nil {
 			return nil, fmt.Errorf("invalid organization ID: %w", err)
 		}
+	} else if req.MACAddress != "" {
+		// Look up organization from registered device (mobile app flow)
+		device, err := s.deviceRepo.FindByMACAddress(ctx, normalizeMACAddress(req.MACAddress))
+		if err != nil {
+			return nil, fmt.Errorf("failed to look up device: %w", err)
+		}
+		if device == nil {
+			return nil, fmt.Errorf("device not registered: please contact your administrator to register this device")
+		}
+		orgID = device.OrganizationID
 	}
 
 	// Create user
@@ -471,4 +487,173 @@ func (s *AuthService) UpdateUserOrganization(ctx context.Context, userID, orgID 
 	}
 
 	return user, nil
+}
+
+// ListUsers retrieves users with pagination and filtering
+func (s *AuthService) ListUsers(ctx context.Context, orgID string, filters map[string]interface{}, page, limit int) ([]*models.User, int64, error) {
+	orgObjID, err := primitive.ObjectIDFromHex(orgID)
+	if err != nil {
+		return nil, 0, fmt.Errorf("invalid organization ID: %w", err)
+	}
+
+	users, total, err := s.userRepo.FindAll(ctx, orgObjID, filters, page, limit)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// Collect unique role IDs
+	roleIDs := make([]primitive.ObjectID, 0)
+	roleIDMap := make(map[primitive.ObjectID]bool)
+	for _, user := range users {
+		if !user.RoleID.IsZero() && !roleIDMap[user.RoleID] {
+			roleIDs = append(roleIDs, user.RoleID)
+			roleIDMap[user.RoleID] = true
+		}
+	}
+
+	// Fetch roles
+	roles, err := s.roleRepo.FindByIDs(ctx, roleIDs)
+	if err != nil {
+		// Log error but proceed with users
+		fmt.Printf("Failed to fetch roles: %v\n", err)
+	} else {
+		// Create a map for faster lookup
+		rolesMap := make(map[primitive.ObjectID]*models.Role)
+		for _, role := range roles {
+			rolesMap[role.ID] = role
+		}
+
+		// Assign roles to users
+		for _, user := range users {
+			if role, ok := rolesMap[user.RoleID]; ok {
+				user.Role = role
+			}
+		}
+	}
+
+	return users, total, nil
+}
+
+// CreateUser creates a new user (admin function)
+func (s *AuthService) CreateUser(ctx context.Context, req RegisterRequest) (*models.User, error) {
+	// Check if email already exists
+	exists, err := s.userRepo.EmailExists(ctx, req.Email)
+	if err != nil {
+		return nil, err
+	}
+	if exists {
+		return nil, fmt.Errorf("email already registered")
+	}
+
+	// Hash password
+	hashedPassword, err := utils.HashPassword(req.Password)
+	if err != nil {
+		return nil, fmt.Errorf("failed to hash password: %w", err)
+	}
+
+	// Parse organization ID if provided
+	var orgID primitive.ObjectID
+	if req.OrganizationID != "" {
+		orgID, err = primitive.ObjectIDFromHex(req.OrganizationID)
+		if err != nil {
+			return nil, fmt.Errorf("invalid organization ID: %w", err)
+		}
+	}
+
+	// Create user
+	user := &models.User{
+		OrganizationID:  orgID,
+		Email:           req.Email,
+		Password:        hashedPassword,
+		FirstName:       req.FirstName,
+		LastName:        req.LastName,
+		Phone:           req.Phone,
+		IsActive:        true,
+		IsEmailVerified: false, // Admin created users might need verification or auto-verified
+	}
+
+	if err := s.userRepo.Create(ctx, user); err != nil {
+		return nil, err
+	}
+
+	return user, nil
+}
+
+type UpdateUserRequest struct {
+	FirstName string `json:"first_name"`
+	LastName  string `json:"last_name"`
+	Phone     string `json:"phone"`
+	RoleID    string `json:"role_id"`
+	IsActive  *bool  `json:"is_active"`
+}
+
+// UpdateUser updates an existing user
+func (s *AuthService) UpdateUser(ctx context.Context, userID string, req UpdateUserRequest) (*models.User, error) {
+	id, err := primitive.ObjectIDFromHex(userID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid user ID: %w", err)
+	}
+
+	user, err := s.userRepo.FindByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if user == nil {
+		return nil, fmt.Errorf("user not found")
+	}
+
+	// Update fields
+	if req.FirstName != "" {
+		user.FirstName = req.FirstName
+	}
+	if req.LastName != "" {
+		user.LastName = req.LastName
+	}
+	if req.Phone != "" {
+		user.Phone = req.Phone
+	}
+	if req.RoleID != "" {
+		roleID, err := primitive.ObjectIDFromHex(req.RoleID)
+		if err == nil {
+			user.RoleID = roleID
+		}
+	}
+	if req.IsActive != nil {
+		user.IsActive = *req.IsActive
+	}
+
+	if err := s.userRepo.Update(ctx, user); err != nil {
+		return nil, err
+	}
+
+	return user, nil
+}
+
+// DeleteUser deletes a user
+func (s *AuthService) DeleteUser(ctx context.Context, userID string) error {
+	id, err := primitive.ObjectIDFromHex(userID)
+	if err != nil {
+		return fmt.Errorf("invalid user ID: %w", err)
+	}
+
+	return s.userRepo.Delete(ctx, id)
+}
+
+// normalizeMACAddress normalizes a MAC address to uppercase colon-separated format
+func normalizeMACAddress(mac string) string {
+	mac = strings.TrimSpace(mac)
+	mac = strings.ReplaceAll(mac, "-", "")
+	mac = strings.ReplaceAll(mac, ":", "")
+	mac = strings.ReplaceAll(mac, ".", "")
+	mac = strings.ToUpper(mac)
+
+	if len(mac) != 12 {
+		return mac // Return as-is; device repo will handle no-match
+	}
+
+	parts := make([]string, 6)
+	for i := 0; i < 6; i++ {
+		parts[i] = mac[i*2 : i*2+2]
+	}
+	return strings.Join(parts, ":")
 }

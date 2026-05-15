@@ -18,6 +18,7 @@ import (
 	"github.com/yourusername/erp-system/services/procurement-service/internal/repository"
 	"github.com/yourusername/erp-system/services/procurement-service/internal/service"
 	"github.com/yourusername/erp-system/shared/middleware"
+	"github.com/yourusername/erp-system/shared/rabbitmq"
 	"github.com/yourusername/erp-system/shared/utils"
 )
 
@@ -37,7 +38,7 @@ func main() {
 	}
 
 	log.Println("Connected to MongoDB successfully")
-	db := mongoClient.Database("erp_procurement")
+	db := mongoClient.Database("erp_db")
 
 	// Create indexes
 	if err := createIndexes(db); err != nil {
@@ -54,8 +55,28 @@ func main() {
 	userClient := client.NewUserClient(cfg)
 	inventoryClient := client.NewInventoryClient(cfg)
 
+	// Initialize RabbitMQ
+	var rabbitClient *rabbitmq.RabbitMQClient
+	var rabbitErr error
+	for i := 0; i < 30; i++ {
+		rabbitClient, rabbitErr = rabbitmq.NewRabbitMQClient(cfg.RabbitMQURL)
+		if rabbitErr == nil {
+			log.Println("Connected to RabbitMQ successfully")
+			break
+		}
+		log.Printf("Failed to connect to RabbitMQ (attempt %d/30): %v", i+1, rabbitErr)
+		time.Sleep(2 * time.Second)
+	}
+
+	if rabbitErr != nil {
+		log.Printf("Warning: Could not connect to RabbitMQ after retries: %v", rabbitErr)
+		// We continue without RabbitMQ, but RPC and Event publishing will fail
+	} else {
+		defer rabbitClient.Close()
+	}
+
 	// Initialize services
-	procurementService := service.NewProcurementService(supplierRepo, poRepo, grnRepo, productClient, userClient, inventoryClient)
+	procurementService := service.NewProcurementService(supplierRepo, poRepo, grnRepo, productClient, userClient, inventoryClient, rabbitClient)
 
 	// Initialize handlers
 	procurementHandler := handlers.NewProcurementHandler(procurementService)
@@ -90,6 +111,18 @@ func main() {
 	// API routes
 	api := router.Group("/api/v1")
 	procurementHandler.RegisterRoutes(api, jwtManager)
+
+	// Initialize RPC Handler
+	if rabbitClient != nil {
+		rpcHandler := handlers.NewRPCHandler(procurementService)
+		_, err := rabbitClient.DeclareQueue("procurement.dashboard.stats")
+		if err != nil {
+			log.Fatalf("Failed to declare RPC queue: %v", err)
+		}
+		if err := rabbitClient.RPCServe("procurement.dashboard.stats", rpcHandler.HandleDashboardStats); err != nil {
+			log.Fatalf("Failed to start RPC server: %v", err)
+		}
+	}
 
 	// Start server
 	port := fmt.Sprintf(":%s", cfg.Port)

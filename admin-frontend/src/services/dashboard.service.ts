@@ -13,6 +13,7 @@ export type DashboardData = {
   orders: OrderItem[];
   activities: ActivityItem[];
   sales: SalesPoint[];
+  inventoryAlerts: LowStockItem[];
 };
 
 interface ApiResponse<T> {
@@ -22,9 +23,19 @@ interface ApiResponse<T> {
   timestamp: string;
 }
 
+export interface LowStockItem {
+  product_id: string;
+  product_name: string;
+  sku: string;
+  quantity_on_hand: number;
+  quantity_available: number;
+  quantity_allocated: number;
+  warehouse_zone: string;
+}
+
 interface InventoryStats {
   critical_stock_count: number;
-  low_stock_items: any[]; // refined type would be better but keeping simple for now
+  low_stock_items: LowStockItem[];
 }
 
 interface ProcurementStats {
@@ -33,22 +44,26 @@ interface ProcurementStats {
   pending_approvals: any[];
 }
 
+interface DashboardOverviewResponse {
+  inventory: InventoryStats;
+  procurement: ProcurementStats;
+  activities: any[];
+  errors?: string[];
+}
+
 export async function getDashboardData(): Promise<DashboardData> {
   try {
-    const [inventoryRes, procurementRes] = await Promise.all([
-      api.get<ApiResponse<InventoryStats>>("/inventory/dashboard/stats"),
-      api.get<ApiResponse<ProcurementStats>>("/procurement/dashboard/stats"),
-    ]);
-
-    const inventoryData = inventoryRes.data.data;
-    const procurementData = procurementRes.data.data;
+    const response = await api.get<ApiResponse<DashboardOverviewResponse>>(
+      "/dashboard/overview",
+    );
+    const { inventory, procurement } = response.data.data;
 
     // Transform API data to Dashboard metrics
     const metrics: Metric[] = [
       {
         id: "critical_stock",
         label: "Critical Stock",
-        value: inventoryData.critical_stock_count.toString(),
+        value: inventory.critical_stock_count.toString(),
         deltaLabel: "Items",
         deltaVariant: "down", // high critical stock is bad
         tone: "warning",
@@ -56,7 +71,7 @@ export async function getDashboardData(): Promise<DashboardData> {
       {
         id: "pending_po",
         label: "Pending POs",
-        value: procurementData.pending_po_count.toString(),
+        value: procurement.pending_po_count.toString(),
         deltaLabel: "Orders",
         deltaVariant: "up",
         tone: "info",
@@ -64,7 +79,7 @@ export async function getDashboardData(): Promise<DashboardData> {
       {
         id: "pending_grn",
         label: "Pending GRNs",
-        value: procurementData.pending_grn_count.toString(),
+        value: procurement.pending_grn_count.toString(),
         deltaLabel: "Receipts",
         deltaVariant: "up",
         tone: "brand",
@@ -72,7 +87,7 @@ export async function getDashboardData(): Promise<DashboardData> {
       {
         id: "pending_approvals",
         label: "Approvals Needed",
-        value: procurementData.pending_approvals.length.toString(),
+        value: procurement.pending_approvals.length.toString(),
         deltaLabel: "Requests",
         deltaVariant: "up",
         tone: "warning",
@@ -80,11 +95,14 @@ export async function getDashboardData(): Promise<DashboardData> {
     ];
 
     // Transform Pending Approvals to "Orders" list for widget
-    const orders: OrderItem[] = procurementData.pending_approvals.map(
+    const orders: OrderItem[] = procurement.pending_approvals.map(
       (po: any) => ({
         id: po.po_number,
-        customer: "Unknown Supplier", // Supplier name enrichment happens on frontend or is missing
+        customer: po.supplier_name || "Unknown Supplier",
         amount: `$${po.total_amount.toFixed(2)}`,
+        itemCount: po.items.length,
+        date: new Date(po.order_date).toLocaleDateString(),
+        mongoId: po.id,
         status: "Pending", // Mapped to Pending to match type
         flag: "orange",
       }),
@@ -94,16 +112,25 @@ export async function getDashboardData(): Promise<DashboardData> {
     // As per plan, these services might not exist yet.
     const reports: ReportItem[] = [
       {
-        id: "sales",
-        title: "Sales Report",
-        subtitle: "Unavailable",
-        tone: "info",
+        id: "po-vs-grn",
+        title: "PO vs GRN Comparison",
+        subtitle: "Compare purchase orders with goods received",
+        tone: "success",
+        route: "/app/reports/po-vs-grn",
       },
       {
-        id: "inventory",
-        title: "Inventory Report",
-        subtitle: "Available",
-        tone: "success",
+        id: "stock-levels",
+        title: "Stock Level Report",
+        subtitle: "Monitor stock levels and status",
+        tone: "brand",
+        route: "/app/reports/stock-levels",
+      },
+      {
+        id: "reorder-status",
+        title: "Reorder Status",
+        subtitle: "Track items needing reorder",
+        tone: "warning",
+        route: "/app/reports/reorder-status",
       },
     ];
 
@@ -112,15 +139,19 @@ export async function getDashboardData(): Promise<DashboardData> {
       // ... minimal mock data
     ];
 
-    const activities: ActivityItem[] = [
-      {
-        id: "a1",
-        title: "System Ready",
-        description: "Dashboard backend integrated",
-        time: "Just now",
-        tone: "success",
-      },
-    ];
+    // Map Activities
+    const activities: ActivityItem[] = (
+      response.data.data.activities || []
+    ).map((activity: any) => ({
+      id: activity.id,
+      title: activity.description || "Activity",
+      description: `Action: ${activity.action} on ${activity.type.replace("_", " ")}`,
+      time:
+        new Date(activity.created_at).toLocaleTimeString() +
+        ", " +
+        new Date(activity.created_at).toLocaleDateString(),
+      tone: "info",
+    }));
 
     return {
       metrics,
@@ -128,6 +159,7 @@ export async function getDashboardData(): Promise<DashboardData> {
       orders,
       activities,
       sales,
+      inventoryAlerts: inventory.low_stock_items || [],
     };
   } catch (error) {
     console.error("Failed to fetch dashboard data:", error);
@@ -138,6 +170,7 @@ export async function getDashboardData(): Promise<DashboardData> {
       orders: [],
       activities: [],
       sales: [],
+      inventoryAlerts: [],
     };
   }
 }

@@ -1,0 +1,16 @@
+.history
+.DS_Store
+
+# Terraform
+infra/terraform/.terraform/
+infra/terraform/*.tfstate
+infra/terraform/*.tfstate.backup
+infra/terraform/*.tfplan
+infra/terraform/tfplan
+infra/terraform/plan_output.txt
+infra/terraform/terraform.tfvars
+
+# Sensitive credentials — never commit
+backend/firebase-credentials.json
+backend/.env
+backend/.env.*

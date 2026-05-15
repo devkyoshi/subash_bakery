@@ -11,13 +11,17 @@ export type ReportItem = {
   id: string;
   title: string;
   subtitle: string;
-  tone: "info" | "success" | "brand";
+  tone: "info" | "success" | "brand" | "warning";
+  route?: string;
 };
 
 export type OrderItem = {
   id: string;
   customer: string;
   amount: string;
+  itemCount: number;
+  date: string;
+  mongoId?: string;
   status: "Pending" | "Processing" | "Shipped";
   flag: "red" | "orange" | "green";
 };

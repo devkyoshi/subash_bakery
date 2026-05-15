@@ -120,6 +120,104 @@ func (s *RoleService) AssignRole(ctx context.Context, userIDStr, roleIDStr strin
 	return nil
 }
 
+// GetRole retrieves a role by ID
+func (s *RoleService) GetRole(ctx context.Context, roleIDStr string) (*models.Role, error) {
+	roleID, err := primitive.ObjectIDFromHex(roleIDStr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid role ID: %w", err)
+	}
+
+	role, err := s.roleRepo.FindByID(ctx, roleID)
+	if err != nil {
+		return nil, err
+	}
+	if role == nil {
+		return nil, fmt.Errorf("role not found")
+	}
+
+	return role, nil
+}
+
+type UpdateRoleRequest struct {
+	Name          string   `json:"name"`
+	DisplayName   string   `json:"display_name"`
+	Description   string   `json:"description"`
+	PermissionIDs []string `json:"permissions"`
+	Priority      int      `json:"priority"`
+	IsActive      *bool    `json:"is_active"`
+}
+
+// UpdateRole updates an existing role
+func (s *RoleService) UpdateRole(ctx context.Context, roleIDStr string, req UpdateRoleRequest) (*models.Role, error) {
+	roleID, err := primitive.ObjectIDFromHex(roleIDStr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid role ID: %w", err)
+	}
+
+	role, err := s.roleRepo.FindByID(ctx, roleID)
+	if err != nil {
+		return nil, err
+	}
+	if role == nil {
+		return nil, fmt.Errorf("role not found")
+	}
+
+	// Update fields if provided
+	if req.Name != "" {
+		role.Name = req.Name
+	}
+	if req.DisplayName != "" {
+		role.DisplayName = req.DisplayName
+	}
+	if req.Description != "" {
+		role.Description = req.Description
+	}
+	if req.Priority != 0 {
+		role.Priority = req.Priority
+	}
+	if req.IsActive != nil {
+		role.IsActive = *req.IsActive
+	}
+
+	// Update permissions if provided
+	if req.PermissionIDs != nil {
+		permissionIDs := make([]primitive.ObjectID, 0, len(req.PermissionIDs))
+		for _, idStr := range req.PermissionIDs {
+			id, err := primitive.ObjectIDFromHex(idStr)
+			if err != nil {
+				return nil, fmt.Errorf("invalid permission ID %s: %w", idStr, err)
+			}
+			permissionIDs = append(permissionIDs, id)
+		}
+		role.Permissions = permissionIDs
+	}
+
+	if err := s.roleRepo.Update(ctx, role); err != nil {
+		return nil, err
+	}
+
+	return role, nil
+}
+
+// DeleteRole deletes a role
+func (s *RoleService) DeleteRole(ctx context.Context, roleIDStr string) error {
+	roleID, err := primitive.ObjectIDFromHex(roleIDStr)
+	if err != nil {
+		return fmt.Errorf("invalid role ID: %w", err)
+	}
+
+	// Check if role is system role
+	role, err := s.roleRepo.FindByID(ctx, roleID)
+	if err != nil {
+		return err
+	}
+	if role != nil && role.IsSystem {
+		return fmt.Errorf("cannot delete system role")
+	}
+
+	return s.roleRepo.Delete(ctx, roleID)
+}
+
 // ListPermissions retrieves all permissions
 func (s *RoleService) ListPermissions(ctx context.Context) ([]*models.Permission, error) {
 	return s.permissionRepo.FindAll(ctx)

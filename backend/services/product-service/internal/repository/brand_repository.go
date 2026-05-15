@@ -243,3 +243,12 @@ func (r *BrandRepository) Search(ctx context.Context, orgID primitive.ObjectID, 
 
 	return brands, total, nil
 }
+
+// Count counts total brands for an organization
+func (r *BrandRepository) Count(ctx context.Context, orgID primitive.ObjectID) (int64, error) {
+	filter := bson.M{
+		"organization_id": orgID,
+		"deleted_at":      nil,
+	}
+	return r.collection.CountDocuments(ctx, filter)
+}

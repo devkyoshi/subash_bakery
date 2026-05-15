@@ -12,6 +12,9 @@ import { DashboardPage } from "@/pages/dashboard/Dashboard";
 import { CalendarPage } from "@/pages/dashboard/Calendar";
 import { OrdersPage } from "@/pages/dashboard/Orders";
 import { ReportsPage } from "@/pages/dashboard/Reports";
+
+import POvsGRNPage from "@/pages/reports/po-vs-grn";
+import ReorderStatusPage from "@/pages/reports/reorder-status";
 import { UsersPage } from "@/pages/users/Users";
 import { TransactionsPage } from "@/pages/dashboard/Transactions";
 import { AnalyticsPage } from "@/pages/dashboard/Analytics";
@@ -46,6 +49,9 @@ import { StockAdjustmentsPage } from "@/pages/inventory/StockAdjustmentsPage";
 import { CreateStockAdjustmentPage } from "@/pages/inventory/CreateStockAdjustmentPage";
 import { StockAdjustmentDetailsPage } from "@/pages/inventory/StockAdjustmentDetailsPage";
 import { StockMovementsPage } from "@/pages/inventory/StockMovementsPage";
+import StockLevelReportPage from "@/pages/reports/stock-levels";
+import { DevicesPage } from "@/pages/devices/DeviceList";
+import { DeviceFormPage } from "@/pages/devices/DeviceForm";
 
 export function AppRoutes() {
   return (
@@ -68,10 +74,13 @@ export function AppRoutes() {
       >
         <Route path="dashboard" element={<DashboardPage />} />
         <Route path="reports" element={<ReportsPage />} />
+        <Route path="reports/po-vs-grn" element={<POvsGRNPage />} />
+        <Route path="reports/stock-levels" element={<StockLevelReportPage />} />
+        <Route path="reports/reorder-status" element={<ReorderStatusPage />} />
         <Route path="orders" element={<OrdersPage />} />
         <Route path="calendar" element={<CalendarPage />} />
 
-        <Route path="users" element={<UsersPage />} />
+        <Route path="users/all" element={<UsersPage />} />
         <Route path="users/roles" element={<UserRoleList />} />
         <Route path="users/roles/new" element={<UserRoleFormPage />} />
         <Route path="users/roles/:id/edit" element={<UserRoleFormPage />} />
@@ -96,6 +105,10 @@ export function AppRoutes() {
         <Route path="settings/unit-charts" element={<UnitChartList />} />
         <Route path="companies" element={<CompanyList />} />
         <Route path="companies/:id" element={<CompanyDetail />} />
+
+        <Route path="devices" element={<DevicesPage />} />
+        <Route path="devices/new" element={<DeviceFormPage />} />
+        <Route path="devices/:id/edit" element={<DeviceFormPage />} />
 
         <Route path="procurement/suppliers" element={<SuppliersPage />} />
         <Route
@@ -129,7 +142,7 @@ export function AppRoutes() {
         <Route path="procurement/grn/new" element={<CreateGRNPage />} />
         <Route path="procurement/grn/:id" element={<GRNDetailsPage />} />
 
-        <Route path="inventory" element={<StockLevelsPage />} />
+        <Route path="inventory/stock-levels" element={<StockLevelsPage />} />
         <Route path="inventory/movements" element={<StockMovementsPage />} />
 
         <Route

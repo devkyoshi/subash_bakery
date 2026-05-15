@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"log"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -10,6 +11,7 @@ import (
 	"github.com/yourusername/erp-system/services/procurement-service/internal/client"
 	"github.com/yourusername/erp-system/services/procurement-service/internal/repository"
 	"github.com/yourusername/erp-system/shared/models"
+	"github.com/yourusername/erp-system/shared/rabbitmq"
 )
 
 type ProcurementService struct {
@@ -19,6 +21,7 @@ type ProcurementService struct {
 	productClient   *client.ProductClient
 	userClient      *client.UserClient
 	inventoryClient *client.InventoryClient
+	rabbitClient    *rabbitmq.RabbitMQClient
 }
 
 func NewProcurementService(
@@ -28,6 +31,7 @@ func NewProcurementService(
 	productClient *client.ProductClient,
 	userClient *client.UserClient,
 	inventoryClient *client.InventoryClient,
+	rabbitClient *rabbitmq.RabbitMQClient,
 ) *ProcurementService {
 	return &ProcurementService{
 		supplierRepo:    supplierRepo,
@@ -36,6 +40,7 @@ func NewProcurementService(
 		productClient:   productClient,
 		userClient:      userClient,
 		inventoryClient: inventoryClient,
+		rabbitClient:    rabbitClient,
 	}
 }
 
@@ -225,6 +230,28 @@ func (s *ProcurementService) CreatePurchaseOrder(ctx context.Context, orgID prim
 		return nil, fmt.Errorf("failed to create purchase order: %w", err)
 	}
 
+	// Publish Activity Event
+	go func() {
+		event := map[string]interface{}{
+			"organization_id": orgID.Hex(),
+			"type":            "purchase_order",
+			"action":          "create",
+			"entity_id":       po.ID.Hex(),
+			"entity_code":     po.PONumber,
+			"description":     fmt.Sprintf("Purchase Order %s created", po.PONumber),
+			"created_by":      createdBy.Hex(),
+			"created_by_name": "System", // TODO: Get user name
+			"metadata": map[string]interface{}{
+				"supplier_id":  po.SupplierID.Hex(),
+				"total_amount": po.TotalAmount,
+				"item_count":   len(po.Items),
+			},
+		}
+		if err := s.rabbitClient.Publish(context.Background(), "", "dashboard.activities", event); err != nil {
+			fmt.Printf("Failed to publish activity event: %v\n", err)
+		}
+	}()
+
 	return po, nil
 }
 
@@ -261,27 +288,61 @@ func (s *ProcurementService) GetPurchaseOrder(ctx context.Context, id primitive.
 	return po, nil
 }
 
-func (s *ProcurementService) ListPurchaseOrders(ctx context.Context, orgID primitive.ObjectID, filters map[string]interface{}, page, limit int) ([]*models.PurchaseOrder, int64, error) {
+func (s *ProcurementService) ListPurchaseOrders(ctx context.Context, orgID primitive.ObjectID, filters map[string]interface{}, page, limit int, token string) ([]*models.PurchaseOrder, int64, error) {
 	orders, total, err := s.poRepo.FindAll(ctx, orgID, filters, page, limit)
 	if err != nil {
 		return nil, 0, err
 	}
 
-	// Collect all supplier IDs
+	// Collections for enrichment
 	supplierIDSet := make(map[string]primitive.ObjectID)
+	productIDSet := make(map[string]primitive.ObjectID)
+
 	for _, order := range orders {
 		if !order.SupplierID.IsZero() {
 			supplierIDSet[order.SupplierID.Hex()] = order.SupplierID
 		}
+		for _, item := range order.Items {
+			productIDSet[item.ProductID.Hex()] = item.ProductID
+		}
 	}
 
 	// Fetch suppliers and enrich
-	for _, supplierID := range supplierIDSet {
-		supplier, err := s.supplierRepo.FindByID(ctx, supplierID)
-		if err == nil && supplier != nil {
+	if len(supplierIDSet) > 0 {
+		for _, supplierID := range supplierIDSet {
+			supplier, err := s.supplierRepo.FindByID(ctx, supplierID)
+			if err == nil && supplier != nil {
+				for _, order := range orders {
+					if order.SupplierID == supplierID {
+						order.SupplierName = supplier.CompanyName
+					}
+				}
+			}
+		}
+	}
+
+	// Fetch products and enrich items
+	if len(productIDSet) > 0 {
+		var productIDs []primitive.ObjectID
+		for _, id := range productIDSet {
+			productIDs = append(productIDs, id)
+		}
+
+		if products, err := s.productClient.GetProductsBatch(ctx, productIDs, token); err == nil {
 			for _, order := range orders {
-				if order.SupplierID == supplierID {
-					order.SupplierName = supplier.CompanyName
+				for i := range order.Items {
+					if prod, ok := products[order.Items[i].ProductID.Hex()]; ok {
+						if order.Items[i].ProductName == "" {
+							order.Items[i].ProductName = prod.Name
+						}
+						if order.Items[i].Description == "" {
+							order.Items[i].Description = prod.Description
+						}
+						// Also populate SKU if missing
+						if order.Items[i].SKU == "" {
+							order.Items[i].SKU = prod.SKU
+						}
+					}
 				}
 			}
 		}
@@ -291,11 +352,76 @@ func (s *ProcurementService) ListPurchaseOrders(ctx context.Context, orgID primi
 }
 
 func (s *ProcurementService) ApprovePurchaseOrder(ctx context.Context, id, approvedBy primitive.ObjectID) error {
-	return s.poRepo.Approve(ctx, id, approvedBy)
+	if err := s.poRepo.Approve(ctx, id, approvedBy); err != nil {
+		return err
+	}
+
+	// Fetch PO to get details for event
+	po, err := s.poRepo.FindByID(ctx, id)
+	if err == nil {
+		// Publish Activity Event
+		go func() {
+			event := map[string]interface{}{
+				"organization_id": po.OrganizationID.Hex(),
+				"type":            "purchase_order",
+				"action":          "approve",
+				"entity_id":       po.ID.Hex(),
+				"entity_code":     po.PONumber,
+				"description":     fmt.Sprintf("Purchase Order %s approved", po.PONumber),
+				"created_by":      approvedBy.Hex(),
+				"created_by_name": "System", // TODO: Get user name
+				"metadata": map[string]interface{}{
+					"supplier_id":  po.SupplierID.Hex(),
+					"total_amount": po.TotalAmount,
+				},
+			}
+			if err := s.rabbitClient.Publish(context.Background(), "", "dashboard.activities", event); err != nil {
+				fmt.Printf("Failed to publish activity event: %v\n", err)
+			}
+		}()
+	}
+
+	return nil
 }
 
 func (s *ProcurementService) UpdatePOStatus(ctx context.Context, id primitive.ObjectID, status models.POStatus) error {
-	return s.poRepo.UpdateStatus(ctx, id, status)
+	if err := s.poRepo.UpdateStatus(ctx, id, status); err != nil {
+		return err
+	}
+
+	if status == models.POStatusRejected || status == models.POStatusCancelled {
+		// Fetch PO to get details for event
+		po, err := s.poRepo.FindByID(ctx, id)
+		if err == nil {
+			action := "reject"
+			if status == models.POStatusCancelled {
+				action = "cancel"
+			}
+
+			// Publish Activity Event
+			go func() {
+				event := map[string]interface{}{
+					"organization_id": po.OrganizationID.Hex(),
+					"type":            "purchase_order",
+					"action":          action,
+					"entity_id":       po.ID.Hex(),
+					"entity_code":     po.PONumber,
+					"description":     fmt.Sprintf("Purchase Order %s %sed", po.PONumber, action),
+					"created_by":      po.CreatedBy.Hex(), // TODO: Ideally pass the user who rejected
+					"created_by_name": "System",
+					"metadata": map[string]interface{}{
+						"supplier_id": po.SupplierID.Hex(),
+						"status":      status,
+					},
+				}
+				if err := s.rabbitClient.Publish(context.Background(), "", "dashboard.activities", event); err != nil {
+					fmt.Printf("Failed to publish activity event: %v\n", err)
+				}
+			}()
+		}
+	}
+
+	return nil
 }
 
 func (s *ProcurementService) DeletePurchaseOrder(ctx context.Context, id, deletedBy primitive.ObjectID) error {
@@ -686,22 +812,63 @@ func (s *ProcurementService) generateGRNNumber(orgID primitive.ObjectID) string 
 	return fmt.Sprintf("GRN-%06d", timestamp%1000000)
 }
 
+// GetDashboardStats retrieves dashboard statistics
 func (s *ProcurementService) GetDashboardStats(ctx context.Context, orgID primitive.ObjectID) (map[string]interface{}, error) {
-	// Pending POs
-	pendingPOCount, pendingApprovals, err := s.poRepo.GetDashboardStats(ctx, orgID)
+	start := time.Now()
+	log.Printf("GetDashboardStats started for OrgID: %s", orgID.Hex())
+
+	pendingCount, totalPOs, pendingApprovals, err := s.poRepo.GetDashboardStats(ctx, orgID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get PO stats: %w", err)
+		return nil, err
+	}
+	log.Printf("GetDashboardStats: PO stats fetched in %v", time.Since(start))
+
+	// Enrich with Supplier Names
+	enrichStart := time.Now()
+	enrichmentMap := make(map[string]string)
+
+	if len(pendingApprovals) > 0 {
+		supplierIDs := make([]primitive.ObjectID, 0)
+		for _, po := range pendingApprovals {
+			supplierIDs = append(supplierIDs, po.SupplierID)
+		}
+
+		suppliers, err := s.supplierRepo.FindByIDs(ctx, supplierIDs)
+		if err != nil {
+			log.Printf("Warning: Failed to fetch suppliers for dashboard stats: %v", err)
+		} else {
+			for _, supplier := range suppliers {
+				enrichmentMap[supplier.ID.Hex()] = supplier.CompanyName
+			}
+		}
 	}
 
-	// Pending GRNs
-	pendingGRNCount, err := s.grnRepo.GetPendingCount(ctx, orgID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get GRN stats: %w", err)
+	// Flatten for JSON response
+	approvals := make([]map[string]interface{}, 0)
+	for _, po := range pendingApprovals {
+		supplierName := "Unknown Supplier"
+		if name, ok := enrichmentMap[po.SupplierID.Hex()]; ok {
+			supplierName = name
+		}
+
+		approvals = append(approvals, map[string]interface{}{
+			"id":            po.ID.Hex(),
+			"po_number":     po.PONumber,
+			"supplier_id":   po.SupplierID.Hex(),
+			"supplier_name": supplierName,
+			"total_amount":  po.TotalAmount,
+			"items":         po.Items,
+			"order_date":    po.OrderDate,
+			"status":        po.Status,
+		})
 	}
+
+	log.Printf("GetDashboardStats: Supplier enrichment took %v", time.Since(enrichStart))
 
 	return map[string]interface{}{
-		"pending_po_count":  pendingPOCount,
-		"pending_grn_count": pendingGRNCount,
-		"pending_approvals": pendingApprovals,
+		"pending_po_count":  pendingCount,
+		"total_pos":         totalPOs,
+		"pending_grn_count": 0, // Placeholder
+		"pending_approvals": approvals,
 	}, nil
 }

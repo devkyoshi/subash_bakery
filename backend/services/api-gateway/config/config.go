@@ -12,6 +12,8 @@ type Config struct {
 	InventoryServiceURL    string
 	ProcurementServiceURL  string
 	NotificationServiceURL string
+	DashboardServiceURL    string
+	ReportServiceURL       string
 }
 
 func LoadConfig() *Config {
@@ -23,6 +25,8 @@ func LoadConfig() *Config {
 		InventoryServiceURL:    getEnv("INVENTORY_SERVICE_URL", "http://inventory-service:8004"),
 		ProcurementServiceURL:  getEnv("PROCUREMENT_SERVICE_URL", "http://procurement-service:8005"),
 		NotificationServiceURL: getEnv("NOTIFICATION_SERVICE_URL", "http://notification-service:8007"),
+		DashboardServiceURL:    getEnv("DASHBOARD_SERVICE_URL", "http://dashboard-service:8008"),
+		ReportServiceURL:       getEnv("REPORT_SERVICE_URL", "http://report-service:8009"),
 	}
 }
 

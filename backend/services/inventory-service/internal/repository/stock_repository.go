@@ -408,15 +408,28 @@ func (r *StockMovementRepository) Find(ctx context.Context, filters map[string]i
 }
 
 // GetDashboardStats retrieves dashboard statistics
-func (r *StockLevelRepository) GetDashboardStats(ctx context.Context, orgID primitive.ObjectID) (int64, []*models.StockLevel, error) {
+func (r *StockLevelRepository) GetDashboardStats(ctx context.Context, orgID primitive.ObjectID) (int64, int64, int64, []*models.StockLevel, error) {
 	// Critical Stock Count (quantity_on_hand <= 0)
 	criticalCount, err := r.collection.CountDocuments(ctx, bson.M{
 		"organization_id":  orgID,
 		"quantity_on_hand": bson.M{"$lte": 0},
 	})
 	if err != nil {
-		return 0, nil, fmt.Errorf("failed to count critical stock: %w", err)
+		return 0, 0, 0, nil, fmt.Errorf("failed to count critical stock: %w", err)
 	}
+
+	// In Stock Count (quantity_on_hand > 0)
+	inStockCount, err := r.collection.CountDocuments(ctx, bson.M{
+		"organization_id":  orgID,
+		"quantity_on_hand": bson.M{"$gt": 0},
+	})
+	if err != nil {
+		return 0, 0, 0, nil, fmt.Errorf("failed to count in stock: %w", err)
+	}
+
+	// Out of Stock Count (quantity_on_hand <= 0) - This is same as critical stock in this context
+	// But let's keep it explicit if definitions diverge later.
+	outOfStockCount := criticalCount
 
 	// Low Stock Items (0 < quantity_on_hand < 10) - Limit to top 5
 	opts := options.Find().
@@ -428,13 +441,13 @@ func (r *StockLevelRepository) GetDashboardStats(ctx context.Context, orgID prim
 		"quantity_on_hand": bson.M{"$gt": 0, "$lt": 10},
 	}, opts)
 	if err != nil {
-		return 0, nil, fmt.Errorf("failed to find low stock items: %w", err)
+		return 0, 0, 0, nil, fmt.Errorf("failed to find low stock items: %w", err)
 	}
 	defer cursor.Close(ctx)
 
 	var lowStockItems []*models.StockLevel
 	if err = cursor.All(ctx, &lowStockItems); err != nil {
-		return 0, nil, fmt.Errorf("failed to decode low stock items: %w", err)
+		return 0, 0, 0, nil, fmt.Errorf("failed to decode low stock items: %w", err)
 	}
 
 	// Initialize slice if nil
@@ -442,5 +455,5 @@ func (r *StockLevelRepository) GetDashboardStats(ctx context.Context, orgID prim
 		lowStockItems = make([]*models.StockLevel, 0)
 	}
 
-	return criticalCount, lowStockItems, nil
+	return criticalCount, inStockCount, outOfStockCount, lowStockItems, nil
 }

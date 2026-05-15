@@ -20,7 +20,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import {
   Search,
-  Download,
   Plus,
   Filter,
   Pencil,
@@ -31,10 +30,13 @@ import {
   X,
 } from "lucide-react";
 import { productService } from "@/services/product.service";
+import { categoryService } from "@/services/category.service"; // Assume exists
+import { brandService } from "@/services/brand.service"; // Assume exists
 import { Product, ProductStatus, ProductType } from "@/types/product.types";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/components/ui/sonner";
 import { useNavigate } from "react-router-dom";
+import { MultiSelect, Option } from "@/components/ui/multi-select";
 
 export function ProductsPage() {
   const navigate = useNavigate();
@@ -48,11 +50,78 @@ export function ProductsPage() {
   const [total, setTotal] = useState(0);
   const limit = 10;
 
+  // Filter Data
+  const [categories, setCategories] = useState<Option[]>([]);
+  const [subcategories, setSubcategories] = useState<Option[]>([]);
+  const [brands, setBrands] = useState<Option[]>([]);
+
+  // Selected Filters
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedSubcategories, setSelectedSubcategories] = useState<string[]>(
+    [],
+  );
+  const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (user?.organization_id) {
+      loadFilterData();
+    }
+  }, [user?.organization_id]);
+
   useEffect(() => {
     if (user?.organization_id) {
       fetchProducts();
     }
-  }, [user?.organization_id, statusFilter, typeFilter, page]);
+  }, [
+    user?.organization_id,
+    statusFilter,
+    typeFilter,
+    page,
+    selectedCategories,
+    selectedSubcategories,
+    selectedBrands,
+  ]);
+
+  const loadFilterData = async () => {
+    try {
+      if (!user?.organization_id) return;
+      // Assuming these services exist and have list methods
+      // In a real app, you might need to handle pagination or fetch all for dropdowns
+      // For now, fetching first page with large limit to populate dropdowns
+      const [catRes, brandRes] = await Promise.all([
+        categoryService.getCategories({
+          organization_id: user.organization_id,
+          limit: 100,
+        }),
+        brandService.getBrands({
+          organization_id: user.organization_id,
+          limit: 100,
+        }),
+      ]);
+
+      setCategories(
+        catRes.data.map((c: any) => ({ label: c.name, value: c.id })),
+      );
+
+      // Flatten subcategories
+      const allSubcategories: Option[] = [];
+      catRes.data.forEach((c: any) => {
+        if (c.subcategories && Array.isArray(c.subcategories)) {
+          c.subcategories.forEach((s: any) => {
+            allSubcategories.push({ label: s.name, value: s.id });
+          });
+        }
+      });
+      setSubcategories(allSubcategories);
+
+      // Brand response struct is different
+      setBrands(
+        brandRes.brands.map((b: any) => ({ label: b.name, value: b.id })),
+      );
+    } catch (error) {
+      console.error("Failed to load filters", error);
+    }
+  };
 
   const fetchProducts = async () => {
     if (!user?.organization_id) return;
@@ -65,6 +134,11 @@ export function ProductsPage() {
         status:
           statusFilter !== "all" ? (statusFilter as ProductStatus) : undefined,
         type: typeFilter !== "all" ? (typeFilter as ProductType) : undefined,
+        category_id:
+          selectedCategories.length > 0 ? selectedCategories : undefined,
+        subcategory_id:
+          selectedSubcategories.length > 0 ? selectedSubcategories : undefined,
+        brand_id: selectedBrands.length > 0 ? selectedBrands : undefined,
         page,
         limit,
       });
@@ -102,14 +176,14 @@ export function ProductsPage() {
   };
 
   const getStatusBadge = (status: ProductStatus) => {
-    const variants = {
+    const variants: Record<string, string> = {
       active: "bg-success text-success-foreground",
       inactive: "bg-muted text-muted-foreground",
       discontinued: "bg-destructive text-destructive-foreground",
     };
 
     return (
-      <Badge variant="default" className={variants[status]}>
+      <Badge variant="default" className={variants[status] || ""}>
         {status.charAt(0).toUpperCase() + status.slice(1)}
       </Badge>
     );
@@ -145,7 +219,7 @@ export function ProductsPage() {
   };
 
   const getProductType = (type: ProductType) => {
-    const typeLabels = {
+    const typeLabels: Record<string, string> = {
       raw_material: "Raw Material",
       finished_goods: "Finished Goods",
       semi_finished: "Semi-Finished",
@@ -172,11 +246,10 @@ export function ProductsPage() {
 
       {/* Filter Section */}
       <div className="rounded-lg border border-border bg-elevated p-6 shadow-none">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          {/* Left Side - Search and Filters */}
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            {/* Search Bar */}
-            <div className="flex items-center gap-2">
+        <div className="flex flex-col gap-4">
+          {/* Top Row: Search and Static Filters */}
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center justify-between">
+            <div className="flex items-center gap-2 flex-1">
               <div className="relative w-full sm:w-64">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
@@ -191,83 +264,6 @@ export function ProductsPage() {
                 Search
               </Button>
             </div>
-
-            {/* Filter Dropdowns */}
-            <div className="flex gap-2">
-              {/* Status Filter */}
-              <Select
-                value={statusFilter}
-                onValueChange={(val) => {
-                  setStatusFilter(val);
-                  setPage(1);
-                }}
-              >
-                <SelectTrigger className="h-10 w-[140px]">
-                  <Filter className="mr-2 h-4 w-4" />
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="inactive">Inactive</SelectItem>
-                  <SelectItem value="discontinued">Discontinued</SelectItem>
-                </SelectContent>
-              </Select>
-
-              {/* Type Filter */}
-              <Select
-                value={typeFilter}
-                onValueChange={(val) => {
-                  setTypeFilter(val);
-                  setPage(1);
-                }}
-              >
-                <SelectTrigger className="h-10 w-[160px]">
-                  <Package className="mr-2 h-4 w-4" />
-                  <SelectValue placeholder="Type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Types</SelectItem>
-                  <SelectItem value="raw_material">Raw Material</SelectItem>
-                  <SelectItem value="finished_goods">Finished Goods</SelectItem>
-                  <SelectItem value="semi_finished">Semi-Finished</SelectItem>
-                  <SelectItem value="consumable">Consumable</SelectItem>
-                  <SelectItem value="service">Service</SelectItem>
-                </SelectContent>
-              </Select>
-
-              {(searchQuery ||
-                statusFilter !== "all" ||
-                typeFilter !== "all") && (
-                <Button
-                  variant="ghost"
-                  onClick={() => {
-                    setSearchQuery("");
-                    setStatusFilter("all");
-                    setTypeFilter("all");
-                    setPage(1);
-                    // trigger fetch effectively via effect or next render
-                  }}
-                >
-                  <X className="mr-2 h-4 w-4" />
-                  Clear
-                </Button>
-              )}
-            </div>
-          </div>
-
-          {/* Right Side - Action Buttons */}
-          <div className="flex gap-2">
-            {/* Export Button */}
-            <Button
-              variant="outline"
-              className="h-10 bg-background hover:bg-muted/50"
-            >
-              <Download className="mr-2 h-4 w-4" />
-              Export
-            </Button>
-
-            {/* Add New Product Button */}
             <Button
               className="h-10 bg-brand text-brand-foreground hover:bg-brand/90 px-4"
               onClick={() => navigate("/app/products/new")}
@@ -276,6 +272,102 @@ export function ProductsPage() {
               Add Product
             </Button>
           </div>
+
+          {/* Second Row: MultiSelect Filters */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+            <MultiSelect
+              options={categories}
+              selected={selectedCategories}
+              onChange={(val) => {
+                setSelectedCategories(val);
+                setPage(1);
+              }}
+              placeholder="Categories"
+            />
+            <MultiSelect
+              options={brands}
+              selected={selectedBrands}
+              onChange={(val) => {
+                setSelectedBrands(val);
+                setPage(1);
+              }}
+              placeholder="Brands"
+            />
+            <MultiSelect
+              options={subcategories}
+              selected={selectedSubcategories}
+              onChange={(val) => {
+                setSelectedSubcategories(val);
+                setPage(1);
+              }}
+              placeholder="Subcategories"
+            />
+
+            <Select
+              value={statusFilter}
+              onValueChange={(val) => {
+                setStatusFilter(val);
+                setPage(1);
+              }}
+            >
+              <SelectTrigger className="h-10">
+                <Filter className="mr-2 h-4 w-4" />
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="inactive">Inactive</SelectItem>
+                <SelectItem value="discontinued">Discontinued</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select
+              value={typeFilter}
+              onValueChange={(val) => {
+                setTypeFilter(val);
+                setPage(1);
+              }}
+            >
+              <SelectTrigger className="h-10">
+                <Package className="mr-2 h-4 w-4" />
+                <SelectValue placeholder="Type" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Types</SelectItem>
+                <SelectItem value="raw_material">Raw Material</SelectItem>
+                <SelectItem value="finished_goods">Finished Goods</SelectItem>
+                <SelectItem value="semi_finished">Semi-Finished</SelectItem>
+                <SelectItem value="consumable">Consumable</SelectItem>
+                <SelectItem value="service">Service</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Clear Filters */}
+          {(searchQuery ||
+            statusFilter !== "all" ||
+            typeFilter !== "all" ||
+            selectedCategories.length > 0 ||
+            selectedBrands.length > 0) && (
+            <div className="flex justify-start">
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setSearchQuery("");
+                  setStatusFilter("all");
+                  setTypeFilter("all");
+                  setSelectedCategories([]);
+                  setSelectedBrands([]);
+                  setPage(1);
+                }}
+                className="px-2"
+              >
+                <X className="mr-2 h-4 w-4" />
+                Clear All Filters
+              </Button>
+            </div>
+          )}
         </div>
       </div>
 

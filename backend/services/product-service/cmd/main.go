@@ -20,6 +20,7 @@ import (
 
 	"github.com/yourusername/erp-system/shared/database"
 	"github.com/yourusername/erp-system/shared/middleware"
+	"github.com/yourusername/erp-system/shared/rabbitmq"
 	"github.com/yourusername/erp-system/shared/utils"
 	"go.mongodb.org/mongo-driver/bson"
 )
@@ -69,11 +70,31 @@ func main() {
 	categoryService := service.NewCategoryService(categoryRepo, orgRepo)
 	unitService := service.NewUnitService(unitRepo)
 
+	// Initialize RabbitMQ
+	rabbitClient, err := rabbitmq.NewRabbitMQClient(cfg.RabbitMQURL)
+	if err != nil {
+		log.Printf("Failed to connect to RabbitMQ: %v", err)
+	} else {
+		defer rabbitClient.Close()
+	}
+
 	// Initialize handlers
 	productHandler := handlers.NewProductHandler(productService)
 	brandHandler := handlers.NewBrandHandler(brandService)
 	categoryHandler := handlers.NewCategoryHandler(categoryService)
 	unitHandler := handlers.NewUnitHandler(unitService)
+
+	// Register RPC Handler
+	if rabbitClient != nil {
+		rpcHandler := handlers.NewRPCHandler(productService)
+		_, err := rabbitClient.DeclareQueue("product.dashboard.stats")
+		if err != nil {
+			log.Fatalf("Failed to declare RPC queue: %v", err)
+		}
+		if err := rabbitClient.RPCServe("product.dashboard.stats", rpcHandler.HandleDashboardStats); err != nil {
+			log.Fatalf("Failed to start RPC server: %v", err)
+		}
+	}
 
 	// Set Gin mode
 	if cfg.Environment == "production" {

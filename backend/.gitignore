@@ -85,3 +85,4 @@ secrets/
 *.key
 *.crt
 firebase-credentials.json
+.history

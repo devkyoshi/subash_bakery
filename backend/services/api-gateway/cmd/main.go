@@ -52,8 +52,10 @@ func main() {
 			strings.HasPrefix(path, "/procurement") {
 			targetURL = cfg.ProcurementServiceURL
 		} else if strings.HasPrefix(path, "/organizations") {
-			// Check for procurement sub-resources under organizations
-			if strings.Contains(path, "/suppliers") ||
+			// Check for report sub-resources under organizations
+			if strings.Contains(path, "/reports") {
+				targetURL = cfg.ReportServiceURL
+			} else if strings.Contains(path, "/suppliers") ||
 				strings.Contains(path, "/purchase-orders") ||
 				strings.Contains(path, "/grns") {
 				targetURL = cfg.ProcurementServiceURL
@@ -67,9 +69,11 @@ func main() {
 				// Default to Org Service for other /organizations routes
 				targetURL = cfg.OrgServiceURL
 			}
-		} else if strings.HasPrefix(path, "/auth") {
+		} else if strings.HasPrefix(path, "/auth") || strings.HasPrefix(path, "/users") || strings.HasPrefix(path, "/roles") || strings.HasPrefix(path, "/permissions") {
 			targetURL = cfg.AuthServiceURL
-		} else if strings.HasPrefix(path, "/companies") || strings.HasPrefix(path, "/locations") || strings.HasPrefix(path, "/users") {
+		} else if strings.HasPrefix(path, "/org-devices") {
+			targetURL = cfg.OrgServiceURL
+		} else if strings.HasPrefix(path, "/companies") || strings.HasPrefix(path, "/locations") {
 			targetURL = cfg.OrgServiceURL
 		} else if strings.Contains(path, "/stock") ||
 			strings.HasPrefix(path, "/inventory") ||
@@ -96,6 +100,8 @@ func main() {
 			targetURL = cfg.InventoryServiceURL
 		} else if strings.HasPrefix(path, "/devices") || strings.HasPrefix(path, "/notifications") {
 			targetURL = cfg.NotificationServiceURL
+		} else if strings.HasPrefix(path, "/dashboard") {
+			targetURL = cfg.DashboardServiceURL
 		} else {
 			c.JSON(http.StatusNotFound, gin.H{"error": "Service not found"})
 			return

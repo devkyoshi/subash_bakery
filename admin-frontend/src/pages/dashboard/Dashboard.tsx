@@ -11,8 +11,12 @@ import { ActivityCard } from "@/components/dashboard/ActivityCard";
 import { CalendarCard } from "@/components/dashboard/CalendarCard";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { InventoryAlerts } from "@/components/dashboard/InventoryAlerts";
+
+import { useNavigate } from "react-router-dom";
 
 export function DashboardPage() {
+  const navigate = useNavigate();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -47,6 +51,34 @@ export function DashboardPage() {
     );
   }
 
+  // Handlers
+  const handleApprove = async (id: string, mongoId: string) => {
+    try {
+      const { procurementService } =
+        await import("@/services/procurement.service");
+      await procurementService.approvePurchaseOrder(mongoId);
+      // Reload data
+      const dashboardData = await getDashboardData();
+      setData(dashboardData);
+    } catch (error) {
+      console.error("Failed to approve order", error);
+    }
+  };
+
+  const handleReject = async (id: string, mongoId: string) => {
+    try {
+      const { procurementService } =
+        await import("@/services/procurement.service");
+      const { POStatus } = await import("@/types/procurement.types");
+      await procurementService.updatePOStatus(mongoId, POStatus.Cancelled);
+      // Reload data
+      const dashboardData = await getDashboardData();
+      setData(dashboardData);
+    } catch (error) {
+      console.error("Failed to reject order", error);
+    }
+  };
+
   if (!data) return <div>Failed to load data</div>;
 
   return (
@@ -58,11 +90,29 @@ export function DashboardPage() {
         ))}
       </section>
 
-      {/* Reports & Orders - Responsive: 1 col mobile, 2 cols tablet+ */}
-      <section className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-6">
+      {/* Reports & Orders & Alerts - Responsive: 1 col mobile, 3 cols desktop */}
+      <section className="grid grid-cols-1 gap-4 lg:grid-cols-3 lg:gap-6">
+        <InventoryAlerts items={data.inventoryAlerts || []} />
         <ReportsCard items={data.reports} />
-        {/* Reuse OrderCard for Pending Approvals for now */}
-        <OrderCard items={data.orders} title="Pending Approvals" />
+        {/* Reuse OrderCard for Pending Approvals */}
+        <OrderCard
+          items={data.orders}
+          title="Pending Approvals"
+          onNewOrder={() => navigate("/app/procurement/orders/new")}
+          onApprove={(id) => {
+            // Find the mongoId from the order item
+            const order = data.orders.find((o) => o.id === id);
+            if (order && order.mongoId) {
+              handleApprove(id, order.mongoId);
+            }
+          }}
+          onReject={(id) => {
+            const order = data.orders.find((o) => o.id === id);
+            if (order && order.mongoId) {
+              handleReject(id, order.mongoId);
+            }
+          }}
+        />
       </section>
 
       {/* Sales History - Full width */}

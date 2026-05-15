@@ -30,10 +30,36 @@ class ProductService {
     params.append("organization_id", filters.organization_id);
 
     // Optional filters
-    if (filters.category_id) params.append("category_id", filters.category_id);
-    if (filters.subcategory_id)
-      params.append("subcategory_id", filters.subcategory_id);
-    if (filters.brand_id) params.append("brand_id", filters.brand_id);
+    // Optional filters
+    if (filters.category_id) {
+      const val = Array.isArray(filters.category_id)
+        ? filters.category_id.join(",")
+        : filters.category_id;
+      params.append(
+        Array.isArray(filters.category_id) ? "category_ids" : "category_id",
+        val,
+      );
+    }
+    if (filters.subcategory_id) {
+      const val = Array.isArray(filters.subcategory_id)
+        ? filters.subcategory_id.join(",")
+        : filters.subcategory_id;
+      params.append(
+        Array.isArray(filters.subcategory_id)
+          ? "subcategory_ids"
+          : "subcategory_id",
+        val,
+      );
+    }
+    if (filters.brand_id) {
+      const val = Array.isArray(filters.brand_id)
+        ? filters.brand_id.join(",")
+        : filters.brand_id;
+      params.append(
+        Array.isArray(filters.brand_id) ? "brand_ids" : "brand_id",
+        val,
+      );
+    }
     if (filters.status) params.append("status", filters.status);
     if (filters.type) params.append("type", filters.type);
     if (filters.track_inventory !== undefined) {

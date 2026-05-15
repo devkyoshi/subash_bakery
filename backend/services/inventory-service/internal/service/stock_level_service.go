@@ -6,6 +6,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/yourusername/erp-system/services/inventory-service/internal/client"
 	"github.com/yourusername/erp-system/services/inventory-service/internal/repository"
 	"github.com/yourusername/erp-system/shared/models"
 	"github.com/yourusername/erp-system/shared/rabbitmq"
@@ -13,14 +14,16 @@ import (
 )
 
 type StockLevelService struct {
-	stockRepo    *repository.StockLevelRepository
-	rabbitClient *rabbitmq.RabbitMQClient
+	stockRepo     *repository.StockLevelRepository
+	rabbitClient  *rabbitmq.RabbitMQClient
+	productClient *client.ProductClient
 }
 
-func NewStockLevelService(stockRepo *repository.StockLevelRepository, rabbitClient *rabbitmq.RabbitMQClient) *StockLevelService {
+func NewStockLevelService(stockRepo *repository.StockLevelRepository, rabbitClient *rabbitmq.RabbitMQClient, productClient *client.ProductClient) *StockLevelService {
 	return &StockLevelService{
-		stockRepo:    stockRepo,
-		rabbitClient: rabbitClient,
+		stockRepo:     stockRepo,
+		rabbitClient:  rabbitClient,
+		productClient: productClient,
 	}
 }
 
@@ -148,14 +151,36 @@ func (s *StockLevelService) ReleaseStock(ctx context.Context, productID, locatio
 }
 
 // GetDashboardStats retrieves critical stock count and low stock items
-func (s *StockLevelService) GetDashboardStats(ctx context.Context, orgID primitive.ObjectID) (map[string]interface{}, error) {
-	criticalCount, lowStockItems, err := s.stockRepo.GetDashboardStats(ctx, orgID)
+func (s *StockLevelService) GetDashboardStats(ctx context.Context, orgID primitive.ObjectID, token string) (map[string]interface{}, error) {
+	criticalCount, inStockCount, outOfStockCount, lowStockItems, err := s.stockRepo.GetDashboardStats(ctx, orgID)
 	if err != nil {
 		return nil, err
 	}
 
+	// Enrich with product details if token is provided
+	if token != "" && len(lowStockItems) > 0 {
+		productIDs := make([]primitive.ObjectID, len(lowStockItems))
+		for i, item := range lowStockItems {
+			productIDs[i] = item.ProductID
+		}
+
+		products, err := s.productClient.GetProductsBatch(ctx, productIDs, token)
+		if err == nil {
+			for _, item := range lowStockItems {
+				if prod, ok := products[item.ProductID.Hex()]; ok {
+					item.ProductName = prod.Name
+					item.SKU = prod.SKU
+				}
+			}
+		} else {
+			log.Printf("Failed to enrich stock items: %v", err)
+		}
+	}
+
 	return map[string]interface{}{
 		"critical_stock_count": criticalCount,
+		"in_stock_count":       inStockCount,
+		"out_of_stock_count":   outOfStockCount,
 		"low_stock_items":      lowStockItems,
 	}, nil
 }

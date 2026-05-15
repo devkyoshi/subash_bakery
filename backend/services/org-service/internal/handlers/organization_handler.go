@@ -78,6 +78,17 @@ func (h *OrganizationHandler) ListOrganizations(c *gin.Context) {
 	utils.PaginatedResponse(c, orgs, page, limit, total)
 }
 
+// GetOrganizationOptions returns a list of organization options
+func (h *OrganizationHandler) GetOrganizationOptions(c *gin.Context) {
+	options, err := h.orgService.GetOrganizationOptions(c.Request.Context())
+	if err != nil {
+		utils.ErrorResponse(c, http.StatusInternalServerError, "FETCH_FAILED", err.Error(), nil)
+		return
+	}
+
+	utils.SuccessResponse(c, http.StatusOK, options, "Organization options retrieved successfully")
+}
+
 // UpdateOrganization updates an organization
 func (h *OrganizationHandler) UpdateOrganization(c *gin.Context) {
 	id, err := primitive.ObjectIDFromHex(c.Param("id"))
@@ -401,6 +412,7 @@ func (h *OrganizationHandler) RegisterRoutes(router *gin.RouterGroup, jwtManager
 	{
 		orgs.POST("", h.CreateOrganization)
 		orgs.GET("", h.ListOrganizations)
+		orgs.GET("/options", h.GetOrganizationOptions) // Register BEFORE /:id
 		orgs.GET("/:id", h.GetOrganization)
 		orgs.PUT("/:id", h.UpdateOrganization)
 		orgs.DELETE("/:id", h.DeleteOrganization)

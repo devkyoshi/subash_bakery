@@ -42,6 +42,30 @@ func NewProductService(
 	}
 }
 
+// GetDashboardStats returns counts for products, categories, and brands
+func (s *ProductService) GetDashboardStats(ctx context.Context, orgID primitive.ObjectID) (map[string]int64, error) {
+	productCount, err := s.productRepo.Count(ctx, orgID)
+	if err != nil {
+		return nil, err
+	}
+
+	categoryCount, err := s.categoryRepo.Count(ctx, orgID)
+	if err != nil {
+		return nil, err
+	}
+
+	brandCount, err := s.brandRepo.Count(ctx, orgID)
+	if err != nil {
+		return nil, err
+	}
+
+	return map[string]int64{
+		"total_products":   productCount,
+		"total_categories": categoryCount,
+		"total_brands":     brandCount,
+	}, nil
+}
+
 // CreateProduct creates a new product
 func (s *ProductService) CreateProduct(ctx context.Context, req CreateProductRequest, userOrgID primitive.ObjectID, token string) (*models.Product, error) {
 	// Parse organization ID

@@ -98,25 +98,25 @@ func (r *ApplicationRepository) FindAll(ctx context.Context, category models.App
 // Update updates an application
 func (r *ApplicationRepository) Update(ctx context.Context, app *models.Application) error {
 	app.UpdatedAt = time.Now()
-	app.Version++
+	// app.Version++
 
-	filter := bson.M{
-		"_id":     app.ID,
-		"version": app.Version - 1,
-	}
+	// filter := bson.M{
+	// 	"_id":     app.ID,
+	// 	"version": app.Version - 1,
+	// }
 
-	update := bson.M{
-		"$set": app,
-	}
+	// update := bson.M{
+	// 	"$set": app,
+	// }
 
-	result, err := r.collection.UpdateOne(ctx, filter, update)
-	if err != nil {
-		return err
-	}
+	// // result, err := r.collection.UpdateOne(ctx, filter, update)
+	// // if err != nil {
+	// // 	return err
+	// // }
 
-	if result.MatchedCount == 0 {
-		return mongo.ErrNoDocuments
-	}
+	// if result.MatchedCount == 0 {
+	// 	return mongo.ErrNoDocuments
+	// }
 
 	return nil
 }

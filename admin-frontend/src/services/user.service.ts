@@ -1,4 +1,5 @@
 import axiosInstance from "@/lib/axios";
+import { Role } from "@/types/role.types";
 
 export interface User {
   id: string;
@@ -12,9 +13,10 @@ export interface User {
   is_active: boolean;
   is_email_verified: boolean;
   google_id?: string;
-  last_login_at?: string;
+  last_login?: string;
   created_at: string;
   updated_at: string;
+  role?: Role;
 }
 
 export interface Pagination {
@@ -49,10 +51,9 @@ class UserService {
       company_id?: string;
     },
   ): Promise<GetUsersResponse> {
-    const response = await axiosInstance.get<GetUsersResponse>(
-      `/organizations/${organizationId}/users`,
-      { params },
-    );
+    const response = await axiosInstance.get<GetUsersResponse>("/users", {
+      params: { ...params, organization_id: organizationId },
+    });
     return response.data;
   }
 

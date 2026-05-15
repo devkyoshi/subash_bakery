@@ -23,6 +23,7 @@ const (
 	POStatusReceived          POStatus = "received"
 	POStatusPartiallyReceived POStatus = "partial"
 	POStatusCancelled         POStatus = "cancelled"
+	POStatusRejected          POStatus = "rejected"
 )
 
 type GRNStatus string
