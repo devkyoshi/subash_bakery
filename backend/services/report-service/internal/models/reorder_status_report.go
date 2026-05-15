@@ -2,25 +2,25 @@ package models
 
 // ReorderItem represents a single product's reorder status
 type ReorderItem struct {
-	ID           string  `json:"id"`             // Product SKU
-	Name         string  `json:"name"`           // Product name
-	Unit         string  `json:"unit"`           // Unit abbreviation
-	Priority     string  `json:"priority"`       // CRITICAL, WARNING, NORMAL
-	CurrentStock float64 `json:"currentStock"`   // Current quantity on hand
-	MinLevel     int     `json:"minLevel"`       // Minimum stock / reorder level
-	RemainingDays int    `json:"remainingDays"`  // Estimated days until stockout
-	Pending      string  `json:"pending"`        // Pending order quantity text
-	SugQty       int     `json:"sugQty"`         // Suggested reorder quantity
-	LeadTime     string  `json:"leadTime"`       // Lead time as string (e.g., "5 Days")
+	ID            string  `json:"id"`            // Product SKU
+	Name          string  `json:"name"`          // Product name
+	Unit          string  `json:"unit"`          // Unit abbreviation
+	Priority      string  `json:"priority"`      // CRITICAL, WARNING, NORMAL
+	CurrentStock  float64 `json:"currentStock"`  // Current quantity on hand
+	MinLevel      int     `json:"minLevel"`      // Minimum stock / reorder level
+	RemainingDays int     `json:"remainingDays"` // Estimated days until stockout
+	Pending       string  `json:"pending"`       // Pending order quantity text
+	SugQty        int     `json:"sugQty"`        // Suggested reorder quantity
+	LeadTime      string  `json:"leadTime"`      // Lead time as string (e.g., "5 Days")
 }
 
 // ConsumptionRow represents a single category's consumption analysis
 type ConsumptionRow struct {
-	Category string `json:"category"`   // Category name
-	AvgDaily string `json:"avgDaily"`   // Average daily consumption string
-	Trend    string `json:"trend"`      // Trend percentage string
-	TrendDir string `json:"trendDir"`   // "up", "down", "neutral"
-	Forecast string `json:"forecast"`   // Forecasted monthly usage string
+	Category string `json:"category"` // Category name
+	AvgDaily string `json:"avgDaily"` // Average daily consumption string
+	Trend    string `json:"trend"`    // Trend percentage string
+	TrendDir string `json:"trendDir"` // "up", "down", "neutral"
+	Forecast string `json:"forecast"` // Forecasted monthly usage string
 }
 
 // ReorderMetrics represents the summary metrics for the reorder status report

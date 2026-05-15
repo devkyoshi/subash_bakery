@@ -1,0 +1,12 @@
+.git
+.gitignore
+*.md
+docs/
+swagger.yaml
+swagger-ui.html
+Makefile
+scripts/
+.env
+.env.*
+**/.env
+**/.env.*

@@ -1,0 +1,30 @@
+# Copy this to terraform.tfvars and fill in the values.
+# terraform.tfvars is gitignored — never commit it.
+
+project_id   = "subash-bakery-495502"
+region       = "us-central1"
+image_tag    = "latest"
+machine_type = "e2-standard-2"  # use "e2-medium" for lower cost
+
+# Database / messaging passwords
+mongo_password    = "CHANGE_ME_strong_password"
+rabbitmq_password = "CHANGE_ME_strong_password"
+
+# JWT signing secret — generate with: openssl rand -hex 32
+jwt_secret = "CHANGE_ME"
+
+# Google OAuth credentials (from Google Cloud Console → APIs & Services → Credentials)
+google_client_id     = "xxxx.apps.googleusercontent.com"
+google_client_secret = "CHANGE_ME"
+
+# Firebase service account JSON (contents of firebase-credentials.json)
+# Paste the entire JSON as a single-line or heredoc string
+firebase_credentials_json = <<EOT
+{
+  "type": "service_account",
+  ...
+}
+EOT
+
+# Leave empty on first apply; set after Cloud Run deploys product-service
+product_service_url = ""

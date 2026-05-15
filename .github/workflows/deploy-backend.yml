@@ -1,0 +1,225 @@
+name: Deploy Backend Services
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'backend/**'
+
+env:
+  PROJECT_ID: subash-bakery-495502
+  REGION: us-central1
+  REGISTRY: us-central1-docker.pkg.dev
+  REPO: erp-backend
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      shared:               ${{ steps.filter.outputs.shared }}
+      api-gateway:          ${{ steps.filter.outputs.api-gateway }}
+      auth-service:         ${{ steps.filter.outputs.auth-service }}
+      org-service:          ${{ steps.filter.outputs.org-service }}
+      product-service:      ${{ steps.filter.outputs.product-service }}
+      inventory-service:    ${{ steps.filter.outputs.inventory-service }}
+      procurement-service:  ${{ steps.filter.outputs.procurement-service }}
+      notification-service: ${{ steps.filter.outputs.notification-service }}
+      dashboard-service:    ${{ steps.filter.outputs.dashboard-service }}
+      report-service:       ${{ steps.filter.outputs.report-service }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            shared:
+              - 'backend/shared/**'
+            api-gateway:
+              - 'backend/services/api-gateway/**'
+            auth-service:
+              - 'backend/services/auth-service/**'
+            org-service:
+              - 'backend/services/org-service/**'
+            product-service:
+              - 'backend/services/product-service/**'
+            inventory-service:
+              - 'backend/services/inventory-service/**'
+            procurement-service:
+              - 'backend/services/procurement-service/**'
+            notification-service:
+              - 'backend/services/notification-service/**'
+            dashboard-service:
+              - 'backend/services/dashboard-service/**'
+            report-service:
+              - 'backend/services/report-service/**'
+
+  build-deploy:
+    needs: detect-changes
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: api-gateway
+            uses-shared: false
+          - service: auth-service
+            uses-shared: true
+          - service: org-service
+            uses-shared: true
+          - service: product-service
+            uses-shared: true
+          - service: inventory-service
+            uses-shared: true
+          - service: procurement-service
+            uses-shared: true
+          - service: notification-service
+            uses-shared: true
+          - service: dashboard-service
+            uses-shared: true
+          - service: report-service
+            uses-shared: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Determine if rebuild is needed
+        id: check
+        env:
+          SERVICE_CHANGED: ${{ needs.detect-changes.outputs[matrix.service] }}
+          SHARED_CHANGED: ${{ needs.detect-changes.outputs.shared }}
+          USES_SHARED: ${{ matrix.uses-shared }}
+        run: |
+          if [ "$SERVICE_CHANGED" = "true" ]; then
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          elif [ "$SHARED_CHANGED" = "true" ] && [ "$USES_SHARED" = "true" ]; then
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "build=false" >> "$GITHUB_OUTPUT"
+            echo "Skipping ${{ matrix.service }} — no relevant changes."
+          fi
+
+      - name: Authenticate to GCP
+        if: steps.check.outputs.build == 'true'
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        if: steps.check.outputs.build == 'true'
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        if: steps.check.outputs.build == 'true'
+        run: gcloud auth configure-docker ${{ env.REGISTRY }} --quiet
+
+      - name: Set up Docker Buildx
+        if: steps.check.outputs.build == 'true'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push Docker image
+        if: steps.check.outputs.build == 'true'
+        working-directory: backend
+        run: |
+          IMAGE="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/${{ matrix.service }}"
+          docker buildx build \
+            --platform linux/amd64 \
+            -f services/${{ matrix.service }}/Dockerfile \
+            -t "${IMAGE}:${{ github.sha }}" \
+            -t "${IMAGE}:latest" \
+            --push \
+            .
+
+
+      - name: Deploy to Cloud Run
+        if: steps.check.outputs.build == 'true'
+        run: |
+          IMAGE="${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/${{ matrix.service }}:${{ github.sha }}"
+
+          # api-gateway is the only public service
+          if [ "${{ matrix.service }}" = "api-gateway" ]; then
+            ALLOW_UNAUTH="--allow-unauthenticated"
+          else
+            ALLOW_UNAUTH="--no-allow-unauthenticated"
+          fi
+
+          gcloud run deploy ${{ matrix.service }} \
+            --image="$IMAGE" \
+            --region=${{ env.REGION }} \
+            --platform=managed \
+            --vpc-connector=erp-connector \
+            --vpc-egress=private-ranges-only \
+            $ALLOW_UNAUTH \
+            --quiet
+
+  # Lightweight build check on PRs (no push, no deploy)
+  build-check:
+    needs: detect-changes
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: api-gateway
+            uses-shared: false
+          - service: auth-service
+            uses-shared: true
+          - service: org-service
+            uses-shared: true
+          - service: product-service
+            uses-shared: true
+          - service: inventory-service
+            uses-shared: true
+          - service: procurement-service
+            uses-shared: true
+          - service: notification-service
+            uses-shared: true
+          - service: dashboard-service
+            uses-shared: true
+          - service: report-service
+            uses-shared: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Determine if rebuild is needed
+        id: check
+        env:
+          SERVICE_CHANGED: ${{ needs.detect-changes.outputs[matrix.service] }}
+          SHARED_CHANGED: ${{ needs.detect-changes.outputs.shared }}
+          USES_SHARED: ${{ matrix.uses-shared }}
+        run: |
+          if [ "$SERVICE_CHANGED" = "true" ]; then
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          elif [ "$SHARED_CHANGED" = "true" ] && [ "$USES_SHARED" = "true" ]; then
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "build=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up Docker Buildx
+        if: steps.check.outputs.build == 'true'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image (no push)
+        if: steps.check.outputs.build == 'true'
+        working-directory: backend
+        run: |
+          docker buildx build \
+            --platform linux/amd64 \
+            -f services/${{ matrix.service }}/Dockerfile \
+            -t ${{ matrix.service }}:pr-check \
+            .

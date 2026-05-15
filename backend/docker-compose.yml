@@ -1,3 +1,4 @@
+version: "3.9"
 
 services:
   # MongoDB
@@ -9,11 +10,9 @@ services:
       MONGO_INITDB_ROOT_USERNAME: admin
       MONGO_INITDB_ROOT_PASSWORD: admin123
       MONGO_INITDB_DATABASE: erp_db
-    ports:
-      - "27017:27017"
     volumes:
       - mongodb_data:/data/db
-      - ./scripts/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js
+      - ./scripts/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
     networks:
       - erp-network
 
@@ -22,8 +21,6 @@ services:
     image: redis:7-alpine
     container_name: erp-redis
     restart: unless-stopped
-    ports:
-      - "6379:6379"
     volumes:
       - redis_data:/data
     networks:
@@ -37,9 +34,6 @@ services:
     environment:
       RABBITMQ_DEFAULT_USER: admin
       RABBITMQ_DEFAULT_PASS: admin123
-    ports:
-      - "5672:5672"
-      - "15672:15672"
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
       interval: 10s
@@ -50,7 +44,7 @@ services:
     networks:
       - erp-network
 
-  # API Gateway
+  # API Gateway (ONLY PUBLIC SERVICE)
   api-gateway:
     build:
       context: .
@@ -86,19 +80,16 @@ services:
     build:
       context: .
       dockerfile: ./services/auth-service/Dockerfile
-    container_name: erp-auth-service
     restart: unless-stopped
     environment:
       PORT: 8001
-      MONGO_URI: mongodb://admin:admin123@mongodb:27017
+      MONGO_URI: mongodb://admin:admin123@mongodb:27017/erp_db?authSource=admin
       REDIS_ADDR: redis:6379
-      JWT_SECRET: your-super-secret-jwt-key-change-in-production
+      JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRY: 15m
       REFRESH_TOKEN_EXPIRY: 168h
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
-    ports:
-      - "8001:8001"
     depends_on:
       - mongodb
       - redis
@@ -110,21 +101,14 @@ services:
     build:
       context: .
       dockerfile: ./services/org-service/Dockerfile
-    container_name: erp-org-service
     restart: unless-stopped
     environment:
       PORT: 8002
-      MONGO_URI: mongodb://admin:admin123@mongodb:27017
+      MONGO_URI: mongodb://admin:admin123@mongodb:27017/erp_db?authSource=admin
       REDIS_ADDR: redis:6379
       RABBITMQ_URL: amqp://admin:admin123@rabbitmq:5672/
-      JWT_SECRET: your-super-secret-jwt-key-change-in-production
-    ports:
-      - "8002:8002"
+      JWT_SECRET: ${JWT_SECRET}
     depends_on:
-      mongodb:
-        condition: service_started
-      redis:
-        condition: service_started
       rabbitmq:
         condition: service_healthy
     networks:
@@ -135,21 +119,14 @@ services:
     build:
       context: .
       dockerfile: ./services/product-service/Dockerfile
-    container_name: erp-product-service
     restart: unless-stopped
     environment:
       PORT: 8003
-      MONGO_URI: mongodb://admin:admin123@mongodb:27017
+      MONGO_URI: mongodb://admin:admin123@mongodb:27017/erp_db?authSource=admin
       REDIS_ADDR: redis:6379
       RABBITMQ_URL: amqp://admin:admin123@rabbitmq:5672/
-      JWT_SECRET: your-super-secret-jwt-key-change-in-production
-    ports:
-      - "8003:8003"
+      JWT_SECRET: ${JWT_SECRET}
     depends_on:
-      mongodb:
-        condition: service_started
-      redis:
-        condition: service_started
       rabbitmq:
         condition: service_healthy
     networks:
@@ -160,87 +137,16 @@ services:
     build:
       context: .
       dockerfile: ./services/inventory-service/Dockerfile
-    container_name: erp-inventory-service
     restart: unless-stopped
     environment:
       PORT: 8004
-      MONGO_URI: mongodb://admin:admin123@mongodb:27017
+      MONGO_URI: mongodb://admin:admin123@mongodb:27017/erp_db?authSource=admin
       REDIS_ADDR: redis:6379
       RABBITMQ_URL: amqp://admin:admin123@rabbitmq:5672/
-      JWT_SECRET: your-super-secret-jwt-key-change-in-production
-    ports:
-      - "8004:8004"
-    depends_on:
-      mongodb:
-        condition: service_started
-      redis:
-        condition: service_started
-      rabbitmq:
-        condition: service_healthy
-    networks:
-      - erp-network
-
-  # Procurement Service
-  procurement-service:
-    build:
-      context: .
-      dockerfile: ./services/procurement-service/Dockerfile
-    container_name: erp-procurement-service
-    restart: unless-stopped
-    environment:
-      PORT: 8005
-      MONGO_URI: mongodb://admin:admin123@mongodb:27017
-      REDIS_ADDR: redis:6379
-      RABBITMQ_URL: amqp://admin:admin123@rabbitmq:5672/
-      JWT_SECRET: your-super-secret-jwt-key-change-in-production
-    ports:
-      - "8005:8005"
-    depends_on:
-      mongodb:
-        condition: service_started
-      redis:
-        condition: service_started
-      rabbitmq:
-        condition: service_healthy
-    networks:
-      - erp-network
-
-
-  # Dashboard Service
-  dashboard-service:
-    build:
-      context: .
-      dockerfile: ./services/dashboard-service/Dockerfile
-    container_name: erp-dashboard-service
-    restart: unless-stopped
-    environment:
-      PORT: 8008
-      MONGO_URI: mongodb://admin:admin123@mongodb:27017
-      RABBITMQ_URL: amqp://admin:admin123@rabbitmq:5672/
-      JWT_SECRET: your-super-secret-jwt-key-change-in-production
-    ports:
-      - "8008:8008"
+      JWT_SECRET: ${JWT_SECRET}
     depends_on:
       rabbitmq:
         condition: service_healthy
-    networks:
-      - erp-network
-
-  # Report Service
-  report-service:
-    build:
-      context: .
-      dockerfile: ./services/report-service/Dockerfile
-    container_name: erp-report-service
-    restart: unless-stopped
-    environment:
-      PORT: 8009
-      MONGO_URI: mongodb://admin:admin123@mongodb:27017
-      JWT_SECRET: your-super-secret-jwt-key-change-in-production
-    ports:
-      - "8009:8009"
-    depends_on:
-      - mongodb
     networks:
       - erp-network
 
@@ -249,37 +155,36 @@ services:
     build:
       context: .
       dockerfile: ./services/notification-service/Dockerfile
-    container_name: erp-notification-service
     restart: unless-stopped
     environment:
       PORT: 8007
-      MONGO_URI: mongodb://admin:admin123@mongodb:27017
+      MONGO_URI: mongodb://admin:admin123@mongodb:27017/erp_db?authSource=admin
       DB_NAME: erp_db
       RABBITMQ_URL: amqp://admin:admin123@rabbitmq:5672/
-      JWT_SECRET: your-super-secret-jwt-key-change-in-production
-    ports:
-      - "8007:8007"
-    depends_on:
-      - mongodb
-      - rabbitmq
+      JWT_SECRET: ${JWT_SECRET}
     volumes:
-      - ./firebase-credentials.json:/app/firebase-credentials.json
+      - ./firebase-credentials.json:/app/firebase-credentials.json:ro
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
     networks:
       - erp-network
 
-  # Admin Frontend
-  # admin-frontend:
-  #   build:
-  #     context: ../admin-frontend
-  #     dockerfile: Dockerfile
-  #     args:
-  #       VITE_API_BASE_URL: http://localhost:8080/api/v1
-  #   container_name: erp-admin-frontend
-  #   restart: unless-stopped
-  #   ports:
-  #     - "3000:3000"
-  #   networks:
-  #     - erp-network
+  #Admin Frontend
+admin-frontend:
+  build:
+    context: ../admin-frontend
+    dockerfile: Dockerfile
+    args:
+      VITE_API_BASE_URL: ${VITE_API_BASE_URL} 
+  container_name: erp-admin-frontend
+  restart: unless-stopped
+  ports:
+    - "3000:3000"
+  networks:
+    - erp-network
+  env_file:
+    - ../.env
 
 volumes:
   mongodb_data:
