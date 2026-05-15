@@ -34,6 +34,10 @@ resource "google_compute_instance" "erp_infra" {
   }
 
   allow_stopping_for_update = true
+
+  lifecycle {
+    ignore_changes = [metadata]
+  }
 }
 
 # Service account for the infra VM (needs Secret Manager read access)
