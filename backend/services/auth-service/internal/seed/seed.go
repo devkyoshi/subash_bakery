@@ -4,9 +4,12 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
+	"time"
 
 	"github.com/yourusername/erp-system/services/auth-service/internal/repository"
 	"github.com/yourusername/erp-system/shared/models"
+	"github.com/yourusername/erp-system/shared/utils"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
@@ -14,13 +17,15 @@ import (
 type Seeder struct {
 	permissionRepo *repository.PermissionRepository
 	roleRepo       *repository.RoleRepository
+	userRepo       *repository.UserRepository
 }
 
 // NewSeeder creates a new seeder instance
-func NewSeeder(permissionRepo *repository.PermissionRepository, roleRepo *repository.RoleRepository) *Seeder {
+func NewSeeder(permissionRepo *repository.PermissionRepository, roleRepo *repository.RoleRepository, userRepo *repository.UserRepository) *Seeder {
 	return &Seeder{
 		permissionRepo: permissionRepo,
 		roleRepo:       roleRepo,
+		userRepo:       userRepo,
 	}
 }
 
@@ -36,6 +41,11 @@ func (s *Seeder) SeedAll(ctx context.Context) error {
 	// Seed roles
 	if err := s.SeedRoles(ctx); err != nil {
 		return fmt.Errorf("failed to seed roles: %w", err)
+	}
+
+	// Seed admin user
+	if err := s.SeedAdminUser(ctx); err != nil {
+		return fmt.Errorf("failed to seed admin user: %w", err)
 	}
 
 	log.Println("Database seeding completed successfully")
@@ -262,4 +272,74 @@ func (s *Seeder) SeedRoles(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+// SeedAdminUser creates a default superadmin user if one does not already exist.
+// Credentials are read from ADMIN_EMAIL / ADMIN_PASSWORD env vars, with safe
+// defaults for local development only.
+func (s *Seeder) SeedAdminUser(ctx context.Context) error {
+	log.Println("Seeding admin user...")
+
+	email := getEnvOrDefault("ADMIN_EMAIL", "admin@bakery.local")
+	password := getEnvOrDefault("ADMIN_PASSWORD", "Admin@123")
+
+	existing, err := s.userRepo.FindByEmail(ctx, email)
+	if err != nil {
+		return fmt.Errorf("failed to check admin user: %w", err)
+	}
+	if existing != nil {
+		log.Printf("Admin user %s already exists, skipping creation", email)
+		return nil
+	}
+
+	adminRole, err := s.roleRepo.FindByName(ctx, "ADMIN")
+	if err != nil {
+		return fmt.Errorf("failed to find ADMIN role: %w", err)
+	}
+	if adminRole == nil {
+		return fmt.Errorf("ADMIN role not found — ensure SeedRoles ran first")
+	}
+
+	hashedPassword, err := utils.HashPassword(password)
+	if err != nil {
+		return fmt.Errorf("failed to hash admin password: %w", err)
+	}
+
+	now := time.Now()
+	zeroOrgID, _ := primitive.ObjectIDFromHex("000000000000000000000000")
+
+	adminUser := &models.User{
+		BaseModel: models.BaseModel{
+			Version: 0,
+		},
+		OrganizationID:  zeroOrgID,
+		Email:           email,
+		Password:        hashedPassword,
+		FirstName:       "Super",
+		LastName:        "Admin",
+		FullName:        "Super Admin",
+		RoleID:          adminRole.ID,
+		Status:          models.UserStatusActive,
+		IsActive:        true,
+		IsEmailVerified: true,
+		EmailVerifiedAt: &now,
+		Timezone:        "UTC",
+		Language:        "en",
+		DateFormat:      "YYYY-MM-DD",
+		TimeFormat:      "24h",
+	}
+
+	if err := s.userRepo.Create(ctx, adminUser); err != nil {
+		return fmt.Errorf("failed to create admin user: %w", err)
+	}
+
+	log.Printf("Admin user created — email: %s", email)
+	return nil
+}
+
+func getEnvOrDefault(key, defaultValue string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return defaultValue
 }
