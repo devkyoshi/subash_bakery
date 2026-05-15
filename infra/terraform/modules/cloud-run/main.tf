@@ -99,6 +99,10 @@ resource "google_cloud_run_v2_service" "auth_service" {
       }
     }
   }
+
+  lifecycle {
+    ignore_changes = [template[0].containers[0].image]
+  }
 }
 
 # ── org-service ───────────────────────────────────────────────────────────────
@@ -152,6 +156,10 @@ resource "google_cloud_run_v2_service" "org_service" {
         }
       }
     }
+  }
+
+  lifecycle {
+    ignore_changes = [template[0].containers[0].image]
   }
 }
 
@@ -214,6 +222,10 @@ resource "google_cloud_run_v2_service" "product_service" {
   }
 
   depends_on = [google_cloud_run_v2_service.inventory_service]
+
+  lifecycle {
+    ignore_changes = [template[0].containers[0].image]
+  }
 }
 
 # ── inventory-service ─────────────────────────────────────────────────────────
@@ -283,6 +295,10 @@ resource "google_cloud_run_v2_service" "inventory_service" {
         }
       }
     }
+  }
+
+  lifecycle {
+    ignore_changes = [template[0].containers[0].image]
   }
 }
 
@@ -359,6 +375,10 @@ resource "google_cloud_run_v2_service" "procurement_service" {
     google_cloud_run_v2_service.product_service,
     google_cloud_run_v2_service.inventory_service,
   ]
+
+  lifecycle {
+    ignore_changes = [template[0].containers[0].image]
+  }
 }
 
 # ── notification-service ──────────────────────────────────────────────────────
@@ -436,6 +456,10 @@ resource "google_cloud_run_v2_service" "notification_service" {
       }
     }
   }
+
+  lifecycle {
+    ignore_changes = [template[0].containers[0].image]
+  }
 }
 
 # ── dashboard-service ─────────────────────────────────────────────────────────
@@ -489,6 +513,10 @@ resource "google_cloud_run_v2_service" "dashboard_service" {
         }
       }
     }
+  }
+
+  lifecycle {
+    ignore_changes = [template[0].containers[0].image]
   }
 }
 
@@ -551,6 +579,10 @@ resource "google_cloud_run_v2_service" "report_service" {
   }
 
   depends_on = [google_cloud_run_v2_service.procurement_service]
+
+  lifecycle {
+    ignore_changes = [template[0].containers[0].image]
+  }
 }
 
 # ── api-gateway ───────────────────────────────────────────────────────────────
@@ -643,4 +675,8 @@ resource "google_cloud_run_v2_service" "api_gateway" {
     google_cloud_run_v2_service.dashboard_service,
     google_cloud_run_v2_service.report_service,
   ]
+
+  lifecycle {
+    ignore_changes = [template[0].containers[0].image]
+  }
 }
