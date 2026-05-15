@@ -44,8 +44,8 @@ variable "google_redirect_url" {
 }
 
 variable "firebase_credentials_json" {
-  type      = string
-  sensitive = true
+  type        = string
+  sensitive   = true
   description = "Full JSON content of firebase-credentials.json"
 }
 

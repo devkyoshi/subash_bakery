@@ -20,12 +20,12 @@ resource "google_compute_instance" "erp_infra" {
   }
 
   metadata = {
-    startup-script         = templatefile("${path.module}/startup.sh", {
+    startup-script = templatefile("${path.module}/startup.sh", {
       mongo_password    = var.mongo_password
       rabbitmq_password = var.rabbitmq_password
     })
-    enable-oslogin         = "TRUE"
-    serial-port-enable     = "FALSE"
+    enable-oslogin     = "TRUE"
+    serial-port-enable = "FALSE"
   }
 
   service_account {

@@ -1,15 +1,15 @@
 locals {
   secrets = {
-    "erp-mongo-uri"                  = var.mongo_uri
-    "erp-redis-addr"                 = var.redis_addr
-    "erp-rabbitmq-url"               = var.rabbitmq_url
-    "erp-jwt-secret"                 = var.jwt_secret
-    "erp-google-client-id"           = var.google_client_id
-    "erp-google-client-secret"       = var.google_client_secret
-    "erp-google-redirect-url"        = var.google_redirect_url
-    "erp-firebase-credentials-json"  = var.firebase_credentials_json
-    "erp-mongo-password"             = var.mongo_password
-    "erp-rabbitmq-password"          = var.rabbitmq_password
+    "erp-mongo-uri"                 = var.mongo_uri
+    "erp-redis-addr"                = var.redis_addr
+    "erp-rabbitmq-url"              = var.rabbitmq_url
+    "erp-jwt-secret"                = var.jwt_secret
+    "erp-google-client-id"          = var.google_client_id
+    "erp-google-client-secret"      = var.google_client_secret
+    "erp-google-redirect-url"       = var.google_redirect_url
+    "erp-firebase-credentials-json" = var.firebase_credentials_json
+    "erp-mongo-password"            = var.mongo_password
+    "erp-rabbitmq-password"         = var.rabbitmq_password
   }
 }
 

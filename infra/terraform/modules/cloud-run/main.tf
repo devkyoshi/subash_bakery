@@ -10,10 +10,10 @@ locals {
 
   # Secret-backed env vars shared by all services
   common_secrets = {
-    "MONGO_URI"     = var.secret_ids["erp-mongo-uri"]
-    "REDIS_ADDR"    = var.secret_ids["erp-redis-addr"]
-    "RABBITMQ_URL"  = var.secret_ids["erp-rabbitmq-url"]
-    "JWT_SECRET"    = var.secret_ids["erp-jwt-secret"]
+    "MONGO_URI"    = var.secret_ids["erp-mongo-uri"]
+    "REDIS_ADDR"   = var.secret_ids["erp-redis-addr"]
+    "RABBITMQ_URL" = var.secret_ids["erp-rabbitmq-url"]
+    "JWT_SECRET"   = var.secret_ids["erp-jwt-secret"]
   }
 }
 
