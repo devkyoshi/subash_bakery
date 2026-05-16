@@ -10,7 +10,9 @@ import (
 	"github.com/yourusername/erp-system/services/auth-service/internal/repository"
 	"github.com/yourusername/erp-system/shared/models"
 	"github.com/yourusername/erp-system/shared/utils"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 // Seeder handles database seeding operations
@@ -18,14 +20,16 @@ type Seeder struct {
 	permissionRepo *repository.PermissionRepository
 	roleRepo       *repository.RoleRepository
 	userRepo       *repository.UserRepository
+	db             *mongo.Database
 }
 
 // NewSeeder creates a new seeder instance
-func NewSeeder(permissionRepo *repository.PermissionRepository, roleRepo *repository.RoleRepository, userRepo *repository.UserRepository) *Seeder {
+func NewSeeder(permissionRepo *repository.PermissionRepository, roleRepo *repository.RoleRepository, userRepo *repository.UserRepository, db *mongo.Database) *Seeder {
 	return &Seeder{
 		permissionRepo: permissionRepo,
 		roleRepo:       roleRepo,
 		userRepo:       userRepo,
+		db:             db,
 	}
 }
 
@@ -41,6 +45,11 @@ func (s *Seeder) SeedAll(ctx context.Context) error {
 	// Seed roles
 	if err := s.SeedRoles(ctx); err != nil {
 		return fmt.Errorf("failed to seed roles: %w", err)
+	}
+
+	// Seed admin organization and assign admin user to it
+	if err := s.SeedAdminOrganization(ctx); err != nil {
+		return fmt.Errorf("failed to seed admin organization: %w", err)
 	}
 
 	// Seed admin user
@@ -274,6 +283,70 @@ func (s *Seeder) SeedRoles(ctx context.Context) error {
 	return nil
 }
 
+// SeedAdminOrganization creates the default admin organization if it does not exist.
+func (s *Seeder) SeedAdminOrganization(ctx context.Context) error {
+	log.Println("Seeding admin organization...")
+
+	col := s.db.Collection("organizations")
+
+	var existing models.Organization
+	err := col.FindOne(ctx, bson.M{"domain": "admin.bakery.local"}).Decode(&existing)
+	if err == nil {
+		log.Printf("Admin organization already exists (id: %s), skipping creation", existing.ID.Hex())
+		return nil
+	}
+	if err != mongo.ErrNoDocuments {
+		return fmt.Errorf("failed to check admin organization: %w", err)
+	}
+
+	now := time.Now()
+	org := models.Organization{
+		BaseModel: models.BaseModel{
+			ID:        primitive.NewObjectID(),
+			CreatedAt: now,
+			UpdatedAt: now,
+			Version:   0,
+		},
+		Name:      "Bakery Admin",
+		LegalName: "Bakery Admin Organization",
+		Domain:    "admin.bakery.local",
+		Email:     getEnvOrDefault("ADMIN_EMAIL", "admin@bakery.local"),
+		Status:    models.OrganizationStatusActive,
+		IsActive:  true,
+		ActivatedAt: &now,
+		MaxUsers:     100,
+		MaxCompanies: 10,
+		MaxLocations: 50,
+		StorageLimitGB: 100,
+		Settings: models.OrganizationSettings{
+			Timezone:                 "UTC",
+			DateFormat:               "YYYY-MM-DD",
+			TimeFormat:               "24h",
+			Currency:                 "USD",
+			Language:                 "en",
+			EnabledModules:           []string{"inventory", "products", "orders", "procurement", "reports"},
+			AllowUserRegistration:    false,
+			RequireEmailVerification: false,
+			EnableMFA:                false,
+			SessionTimeout:           1440,
+			PasswordPolicy: models.PasswordPolicy{
+				MinLength:           8,
+				RequireUppercase:    true,
+				RequireLowercase:    true,
+				RequireNumbers:      true,
+				RequireSpecialChars: true,
+			},
+		},
+	}
+
+	if _, err := col.InsertOne(ctx, org); err != nil {
+		return fmt.Errorf("failed to create admin organization: %w", err)
+	}
+
+	log.Printf("Admin organization created (id: %s)", org.ID.Hex())
+	return nil
+}
+
 // SeedAdminUser creates a default superadmin user if one does not already exist.
 // Credentials are read from ADMIN_EMAIL / ADMIN_PASSWORD env vars, with safe
 // defaults for local development only.
@@ -283,12 +356,29 @@ func (s *Seeder) SeedAdminUser(ctx context.Context) error {
 	email := getEnvOrDefault("ADMIN_EMAIL", "admin@bakery.local")
 	password := getEnvOrDefault("ADMIN_PASSWORD", "Admin@123")
 
+	// Resolve the admin organization
+	col := s.db.Collection("organizations")
+	var org models.Organization
+	if err := col.FindOne(ctx, bson.M{"domain": "admin.bakery.local"}).Decode(&org); err != nil {
+		return fmt.Errorf("admin organization not found — ensure SeedAdminOrganization ran first: %w", err)
+	}
+
 	existing, err := s.userRepo.FindByEmail(ctx, email)
 	if err != nil {
 		return fmt.Errorf("failed to check admin user: %w", err)
 	}
 	if existing != nil {
-		log.Printf("Admin user %s already exists, skipping creation", email)
+		// If user exists but has zero org ID, update it
+		zeroID, _ := primitive.ObjectIDFromHex("000000000000000000000000")
+		if existing.OrganizationID == zeroID {
+			existing.OrganizationID = org.ID
+			if err := s.userRepo.Update(ctx, existing); err != nil {
+				return fmt.Errorf("failed to update admin user organization: %w", err)
+			}
+			log.Printf("Updated admin user %s with organization %s", email, org.ID.Hex())
+		} else {
+			log.Printf("Admin user %s already exists with organization %s, skipping", email, existing.OrganizationID.Hex())
+		}
 		return nil
 	}
 
@@ -306,13 +396,11 @@ func (s *Seeder) SeedAdminUser(ctx context.Context) error {
 	}
 
 	now := time.Now()
-	zeroOrgID, _ := primitive.ObjectIDFromHex("000000000000000000000000")
-
 	adminUser := &models.User{
 		BaseModel: models.BaseModel{
 			Version: 0,
 		},
-		OrganizationID:  zeroOrgID,
+		OrganizationID:  org.ID,
 		Email:           email,
 		Password:        hashedPassword,
 		FirstName:       "Super",
@@ -333,7 +421,7 @@ func (s *Seeder) SeedAdminUser(ctx context.Context) error {
 		return fmt.Errorf("failed to create admin user: %w", err)
 	}
 
-	log.Printf("Admin user created — email: %s", email)
+	log.Printf("Admin user created — email: %s, org: %s", email, org.ID.Hex())
 	return nil
 }
 
