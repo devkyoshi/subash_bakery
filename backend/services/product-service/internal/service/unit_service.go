@@ -43,7 +43,7 @@ func (s *UnitService) ListUnits(ctx context.Context) ([]UnitResponse, error) {
 		return nil, err
 	}
 
-	var response []UnitResponse
+	response := make([]UnitResponse, 0, len(units))
 	for _, u := range units {
 		response = append(response, UnitResponse{
 			ID:         u.ID,
@@ -97,7 +97,7 @@ func (s *UnitService) ListUnitsWithConversion(ctx context.Context) ([]UnitRespon
 		conversionsMap[chart.FromUnitID] = append(conversionsMap[chart.FromUnitID], conv)
 	}
 
-	var response []UnitResponse
+	response := make([]UnitResponse, 0, len(units))
 	for _, u := range units {
 		response = append(response, UnitResponse{
 			ID:          u.ID,

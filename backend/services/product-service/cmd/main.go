@@ -14,6 +14,7 @@ import (
 	"github.com/yourusername/erp-system/services/product-service/internal/client"
 	"github.com/yourusername/erp-system/services/product-service/internal/handlers"
 	"github.com/yourusername/erp-system/services/product-service/internal/repository"
+	"github.com/yourusername/erp-system/services/product-service/internal/seed"
 	"github.com/yourusername/erp-system/services/product-service/internal/service"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -49,6 +50,15 @@ func main() {
 			log.Fatalf("Failed to create indexes: %v", err)
 		}
 	}
+
+	// Seed units and unit charts
+	seeder := seed.NewSeeder(mongoDB.Database)
+	seedCtx, seedCancel := context.WithTimeout(context.Background(), 30*time.Second)
+	if err := seeder.SeedAll(seedCtx); err != nil {
+		seedCancel()
+		log.Fatalf("Failed to seed database: %v", err)
+	}
+	seedCancel()
 
 	// Initialize JWT manager
 	jwtManager := utils.NewJWTManager(cfg.JWTSecret, 15*time.Minute, 168*time.Hour)
