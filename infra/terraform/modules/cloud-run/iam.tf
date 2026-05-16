@@ -1,14 +1,14 @@
-# api-gateway accepts public traffic; ingress=ALL is the boundary
-resource "google_cloud_run_service_iam_member" "api_gateway_public" {
+# api-gateway accepts public traffic; ingress=ALL is the security boundary
+resource "google_cloud_run_v2_service_iam_member" "api_gateway_public" {
   project  = var.project_id
   location = var.region
-  service  = google_cloud_run_v2_service.api_gateway.name
+  name     = google_cloud_run_v2_service.api_gateway.name
   role     = "roles/run.invoker"
   member   = "allUsers"
 }
 
 # Private services: ingress=INTERNAL_ONLY is the security boundary.
-# allUsers invoker lets api-gateway proxy without attaching identity tokens.
+# allUsers invoker lets the api-gateway proxy without attaching identity tokens.
 locals {
   private_services = {
     auth_service         = google_cloud_run_v2_service.auth_service.name
@@ -22,12 +22,12 @@ locals {
   }
 }
 
-resource "google_cloud_run_service_iam_member" "private_services_internal_invoker" {
+resource "google_cloud_run_v2_service_iam_member" "private_services_internal_invoker" {
   for_each = local.private_services
 
   project  = var.project_id
   location = var.region
-  service  = each.value
+  name     = each.value
   role     = "roles/run.invoker"
   member   = "allUsers"
 }
